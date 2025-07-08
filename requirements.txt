@@ -1,0 +1,5 @@
+selenium
+loguru
+configparser
+chess
+pynput

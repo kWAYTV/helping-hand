@@ -228,8 +228,7 @@ class BoardHandler:
 
         self.clear_arrow()
 
-        logger.info(f"Move {ceil(move_number / 2)}: {move} [us]")
-        logger.success(f"{ceil(move_number / 2)}. {move} [us]")
+        logger.success(f"Moved: {ceil(move_number / 2)}. {move} [us]")
 
         # Advanced humanized typing delay
         if self.config_manager:

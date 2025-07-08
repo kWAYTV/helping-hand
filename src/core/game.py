@@ -136,8 +136,6 @@ class GameManager:
         # Game complete
         logger.debug("Game completed - follow-up element detected")
         self._log_game_result()
-        self.chess_engine.quit()
-        logger.debug("Chess engine stopped")
         logger.info("Game complete. Waiting for new game to start.")
         self.start_new_game()
 

@@ -45,7 +45,11 @@ class ConfigManager:
             "hash": "2048",
             "skilllevel": "14",
         }
-        self.config["lichess"] = {"username": "user", "password": "pass"}
+        self.config["lichess"] = {
+            "username": "user",
+            "password": "pass",
+            "totpsecret": "",
+        }
         self.config["general"] = {
             "movekey": "end",
             "arrow": "true",

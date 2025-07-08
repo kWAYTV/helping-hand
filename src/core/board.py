@@ -48,7 +48,7 @@ class BoardHandler:
 
             sleep(1)
 
-        logger.info("No follow-up found, waiting for move input box")
+        logger.info("No follow-up found, waiting for user to start game")
 
         try:
             # Wait for move input box

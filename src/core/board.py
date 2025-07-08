@@ -193,7 +193,7 @@ class BoardHandler:
                 uci = board.push_san(move_text)
                 move_desc = "us" if is_our_move else "opponent"
                 logger.info(f"Move {ceil(move_number / 2)}: {uci.uci()} [{move_desc}]")
-                print(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
+                logger.success(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
                 return True
             else:
                 logger.warning(f"Move '{move_text}' is not legal in current position")
@@ -217,7 +217,7 @@ class BoardHandler:
         self.clear_arrow()
 
         logger.info(f"Move {ceil(move_number / 2)}: {move} [us]")
-        print(f"{ceil(move_number / 2)}. {move} [us]")
+        logger.success(f"{ceil(move_number / 2)}. {move} [us]")
 
         # Advanced humanized typing delay
         if self.config_manager:

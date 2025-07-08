@@ -114,7 +114,7 @@ class GameManager:
         logger.info("Game completed - follow-up element detected")
         self.chess_engine.quit()
         logger.info("Chess engine stopped")
-        print("[INFO] :: Game complete. Waiting for new game to start.")
+        logger.info("Game complete. Waiting for new game to start.")
         self.start_new_game()
 
     def _is_our_turn(self, our_color: str) -> bool:
@@ -207,7 +207,7 @@ class GameManager:
             # Just suggesting - show the move and wait
             move_key = self.config_manager.move_key
             logger.debug(f"Suggesting move: {move} (press {move_key} to execute)")
-            print(f"💡 Suggested move: {move} (press {move_key} to execute)")
+            logger.info(f"💡 Suggested move: {move} (press {move_key} to execute)")
             sleep(0.1)  # Small delay to avoid spam
 
             return move_number

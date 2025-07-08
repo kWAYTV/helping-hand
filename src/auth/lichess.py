@@ -19,8 +19,6 @@ class LichessAuth:
 
     def sign_in(self) -> bool:
         """Sign in to Lichess"""
-        logger.info("Starting sign-in process")
-
         try:
             # First try loading saved cookies
             if self._try_cookie_login():
@@ -35,7 +33,7 @@ class LichessAuth:
 
     def _try_cookie_login(self) -> bool:
         """Try to login using saved cookies"""
-        logger.info("Attempting cookie-based login")
+        logger.debug("Attempting cookie-based login")
 
         # Load cookies and check if we're logged in
         cookies_loaded = self.browser_manager.load_cookies()
@@ -51,13 +49,13 @@ class LichessAuth:
             logger.success("Successfully logged in using saved cookies")
             return True
         else:
-            logger.info("Saved cookies are invalid or expired, clearing them")
+            logger.debug("Saved cookies are invalid or expired, clearing them")
             self.browser_manager.clear_cookies()
             return False
 
     def _username_password_login(self) -> bool:
         """Login using username and password"""
-        logger.info("Attempting username/password login")
+        logger.debug("Attempting username/password login")
 
         try:
             driver = self.browser_manager.get_driver()
@@ -67,13 +65,13 @@ class LichessAuth:
                 by=By.XPATH, value="/html/body/header/div[2]/a"
             )
             signin_button.click()
-            logger.info("Clicked sign-in button")
+            logger.debug("Clicked sign-in button")
 
             # Enter credentials
             lichess_config = self.config_manager.lichess_config
             username_field = driver.find_element(By.ID, "form3-username")
             password_field = driver.find_element(By.ID, "form3-password")
-            logger.info("Found username and password fields")
+            logger.debug("Found username and password fields")
 
             # Use standardized lowercase keys with backward compatibility
             username_value = lichess_config.get(
@@ -85,19 +83,19 @@ class LichessAuth:
 
             username_field.send_keys(username_value)
             password_field.send_keys(password_value)
-            logger.info(f"Entered credentials for user: {username_value}")
+            logger.debug(f"Entered credentials for user: {username_value}")
 
             # Submit form
             driver.find_element(
                 By.XPATH, "/html/body/div/main/form/div[1]/button"
             ).click()
-            logger.info("Submitted login form")
+            logger.debug("Submitted login form")
 
             # Handle TOTP if needed
             if not self._handle_totp():
                 return False
 
-            logger.success("Username/password login successful")
+            logger.success("Login successful")
             return True
 
         except Exception as e:
@@ -115,7 +113,7 @@ class LichessAuth:
             # Check if we need TOTP (look for "authentication code" text)
             page_text = driver.page_source.lower()
             if "authentication code" not in page_text:
-                logger.info("No TOTP required")
+                logger.debug("No TOTP required")
                 return True
 
             logger.info("TOTP authentication required")
@@ -150,7 +148,7 @@ class LichessAuth:
             # Enter TOTP code
             totp_field.clear()
             totp_field.send_keys(totp_code)
-            logger.info("Entered TOTP code")
+            logger.debug("Entered TOTP code")
 
             # Submit TOTP form
             try:
@@ -158,11 +156,11 @@ class LichessAuth:
                     By.CSS_SELECTOR, "button[type='submit']"
                 )
                 submit_button.click()
-                logger.info("Submitted TOTP form")
+                logger.debug("Submitted TOTP form")
             except:
                 # Try alternative submit methods
                 totp_field.submit()
-                logger.info("Submitted TOTP form via input")
+                logger.debug("Submitted TOTP form via input")
 
             return True
 
@@ -181,7 +179,7 @@ class LichessAuth:
         try:
             totp = pyotp.TOTP(totp_secret)
             code = totp.now()
-            logger.info(f"Generated TOTP code: {code}")
+            logger.debug(f"Generated TOTP code: {code}")
             return code
         except Exception as e:
             logger.error(f"Failed to generate TOTP code: {e}")

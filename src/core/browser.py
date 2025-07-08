@@ -45,7 +45,7 @@ class BrowserManager:
             self.driver = webdriver.Firefox(
                 service=firefox_service, options=webdriver_options
             )
-            logger.info("Firefox WebDriver initialized successfully")
+            logger.debug("Firefox WebDriver initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")
             raise
@@ -59,7 +59,7 @@ class BrowserManager:
     def navigate_to(self, url: str) -> None:
         """Navigate to a URL"""
         if self.driver:
-            logger.info(f"Navigating to: {url}")
+            logger.debug(f"Navigating to: {url}")
             self.driver.get(url)
         else:
             raise RuntimeError("WebDriver not initialized")
@@ -106,7 +106,7 @@ class BrowserManager:
                 cookies = self.driver.get_cookies()
                 with open(self.cookies_file, "w") as f:
                     json.dump(cookies, f, indent=2)
-                logger.info(f"Saved {len(cookies)} cookies to {self.cookies_file}")
+                logger.debug(f"Saved {len(cookies)} cookies to {self.cookies_file}")
             except Exception as e:
                 logger.error(f"Failed to save cookies: {e}")
 
@@ -130,10 +130,10 @@ class BrowserManager:
                             f"Failed to add cookie {cookie.get('name', 'unknown')}: {e}"
                         )
 
-                logger.info(f"Loaded {len(cookies)} cookies")
+                logger.debug(f"Loaded {len(cookies)} cookies")
                 return True
             else:
-                logger.warning("Cannot load cookies - not on Lichess domain")
+                logger.debug("Cannot load cookies - not on Lichess domain")
                 return False
 
         except Exception as e:
@@ -151,7 +151,7 @@ class BrowserManager:
             # Clear saved cookies file
             if os.path.exists(self.cookies_file):
                 os.remove(self.cookies_file)
-                logger.info("Cleared saved cookies file")
+                logger.debug("Cleared saved cookies file")
         except Exception as e:
             logger.error(f"Failed to clear cookies: {e}")
 

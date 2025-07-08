@@ -33,14 +33,14 @@ class BoardHandler:
 
     def wait_for_game_ready(self) -> bool:
         """Wait for game to be ready and return True if successful"""
-        logger.info("Waiting for game setup")
+        logger.debug("Waiting for game setup")
 
         # Wait for follow-up to disappear
         while self.browser_manager.check_exists_by_class("follow-up"):
             logger.debug("Found follow-up element, waiting...")
             sleep(1)
 
-        logger.info("No follow-up found, waiting for user's first move")
+        logger.debug("No follow-up found, waiting for user's first move")
 
         try:
             # Wait for move input box
@@ -49,13 +49,13 @@ class BoardHandler:
                     (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input")
                 )
             )
-            logger.info("Move input box found")
+            logger.debug("Move input box found")
 
             # Wait for board
             WebDriverWait(self.driver, 600).until(
                 ec.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
             )
-            logger.info("Board found")
+            logger.debug("Board found")
 
             return True
 
@@ -126,13 +126,13 @@ class BoardHandler:
 
     def get_previous_moves(self, board: chess.Board) -> int:
         """Get all previous moves and update board, return current move number"""
-        logger.info("Getting previous moves from board")
+        logger.debug("Getting previous moves from board")
         temp_move_number = 1
 
         # First check if there are ANY moves at all
         first_move = self.find_move_by_alternatives(1)
         if not first_move:
-            logger.info(
+            logger.debug(
                 "No moves found on board - this appears to be the start of the game"
             )
             return 1  # Start from move 1
@@ -159,12 +159,12 @@ class BoardHandler:
                     )
                     break
             else:
-                logger.info(
+                logger.debug(
                     f"No more previous moves found. Total moves processed: {temp_move_number - 1}"
                 )
                 # Only save debug info if we have moves but can't parse them
                 if temp_move_number == 1:
-                    logger.info("No moves on board - starting fresh game")
+                    logger.debug("No moves on board - starting fresh game")
                 elif (
                     temp_move_number <= 3
                 ):  # If we can't find early moves (might be selector issue)
@@ -204,7 +204,6 @@ class BoardHandler:
             if test_move in board.legal_moves:
                 uci = board.push_san(move_text)
                 move_desc = "us" if is_our_move else "opponent"
-                logger.info(f"Move {ceil(move_number / 2)}: {uci.uci()} [{move_desc}]")
                 logger.success(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
                 return True
             else:
@@ -218,7 +217,7 @@ class BoardHandler:
 
     def execute_move(self, move: chess.Move, move_handle, move_number: int) -> None:
         """Execute a move through the interface"""
-        logger.info(f"Executing move: {move}")
+        logger.debug(f"Executing move: {move}")
 
         # Advanced humanized delay before making the move
         if self.config_manager:
@@ -227,8 +226,6 @@ class BoardHandler:
             humanized_delay(0.5, 1.5, "move execution")
 
         self.clear_arrow()
-
-        logger.success(f"Moved: {ceil(move_number / 2)}. {move} [us]")
 
         # Advanced humanized typing delay
         if self.config_manager:

@@ -21,7 +21,7 @@ class DebugUtils:
         # Create debug folder if it doesn't exist
         if not os.path.exists(self.debug_dir):
             os.makedirs(self.debug_dir)
-            logger.info(f"Created debug folder: {self.debug_dir}")
+            logger.debug(f"Created debug folder: {self.debug_dir}")
 
         # Clean up old debug files
         try:
@@ -29,9 +29,9 @@ class DebugUtils:
             if debug_files:
                 for file_path in debug_files:
                     os.remove(file_path)
-                logger.info(f"Cleaned up {len(debug_files)} old debug files")
+                logger.debug(f"Cleaned up {len(debug_files)} old debug files")
             else:
-                logger.info("No old debug files to clean up")
+                logger.debug("No old debug files to clean up")
         except Exception as e:
             logger.warning(f"Failed to clean up debug files: {e}")
 
@@ -47,7 +47,7 @@ class DebugUtils:
                 self.debug_dir, f"screenshot_move{move_number}_{timestamp}.png"
             )
             driver.save_screenshot(screenshot_path)
-            logger.info(f"Saved screenshot to {screenshot_path}")
+            logger.debug(f"Saved screenshot to {screenshot_path}")
 
             # Save page source
             html_path = os.path.join(
@@ -55,7 +55,7 @@ class DebugUtils:
             )
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
-            logger.info(f"Saved page HTML to {html_path}")
+            logger.debug(f"Saved page HTML to {html_path}")
 
             # Save board state if available
             if board:
@@ -70,10 +70,10 @@ class DebugUtils:
                     )
                     f.write(f"Turn: {'White' if board.turn else 'Black'}\n")
                     f.write(f"Move number: {move_number}\n")
-                logger.info(f"Saved board state to {board_path}")
+                logger.debug(f"Saved board state to {board_path}")
 
             # Log current URL
-            logger.info(f"Current URL: {driver.current_url}")
+            logger.debug(f"Current URL: {driver.current_url}")
 
         except Exception as e:
             logger.error(f"Failed to save debug info: {e}")

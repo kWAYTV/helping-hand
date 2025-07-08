@@ -28,7 +28,7 @@ class ChessEngine:
                 raise ValueError("Engine path not found in config")
 
             self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
-            logger.info(f"Started chess engine: {engine_path}")
+            logger.debug(f"Started chess engine: {engine_path}")
 
             # Configure engine options using standardized hyphenated keys
             skill_level = int(
@@ -47,7 +47,7 @@ class ChessEngine:
             }
 
             self.engine.configure(options)
-            logger.info(
+            logger.debug(
                 f"Engine configured - Skill: {options['Skill Level']}, Hash: {options['Hash']}"
             )
 
@@ -100,6 +100,6 @@ class ChessEngine:
     def quit(self) -> None:
         """Stop the chess engine"""
         if self.engine:
-            logger.info("Stopping chess engine")
+            logger.debug("Stopping chess engine")
             self.engine.quit()
             self.engine = None

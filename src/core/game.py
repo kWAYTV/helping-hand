@@ -50,21 +50,21 @@ class GameManager:
             )
 
         # Start keyboard listener
-        logger.info("Starting keyboard listener")
+        logger.debug("Starting keyboard listener")
         self.keyboard_handler.start_listening()
 
         # Navigate to Lichess
-        logger.info("Navigating to lichess.org")
+        logger.debug("Navigating to lichess.org")
         self.browser_manager.navigate_to("https://www.lichess.org")
 
         # Show cookie status
         cookie_info = self.browser_manager.get_cookies_info()
         if cookie_info["exists"]:
-            logger.info(
+            logger.debug(
                 f"Found saved cookies ({cookie_info['count']} cookies, {cookie_info['file_size']} bytes)"
             )
         else:
-            logger.info("No saved cookies found - will use username/password login")
+            logger.debug("No saved cookies found - will use username/password login")
 
         # Sign in
         if not self.lichess_auth.sign_in():
@@ -77,7 +77,7 @@ class GameManager:
 
     def start_new_game(self) -> None:
         """Start a new game"""
-        logger.info("Starting new game - resetting board")
+        logger.debug("Starting new game - resetting board")
         self.board.reset()
         self.current_game_active = True
 
@@ -94,7 +94,7 @@ class GameManager:
 
     def play_game(self, our_color: str) -> None:
         """Main game playing loop"""
-        logger.info(f"Starting play_game as {our_color}")
+        logger.debug(f"Starting play_game as {our_color}")
 
         # Get move input handle
         move_handle = self.board_handler.get_move_input_handle()
@@ -104,10 +104,10 @@ class GameManager:
 
             # Get previous moves to sync board state
         move_number = self.board_handler.get_previous_moves(self.board)
-        logger.info(f"Ready to play. Starting at move number: {move_number}")
+        logger.debug(f"Ready to play. Starting at move number: {move_number}")
 
         # Save cookies after successful game start (indicates successful login)
-        logger.info("Saving login cookies for faster future authentication")
+        logger.debug("Saving login cookies for faster future authentication")
         self.browser_manager.save_cookies()
 
         # If this is the very start of the game, log our turn status
@@ -134,10 +134,10 @@ class GameManager:
                 sleep(0.1)
 
         # Game complete
-        logger.info("Game completed - follow-up element detected")
+        logger.debug("Game completed - follow-up element detected")
         self._log_game_result()
         self.chess_engine.quit()
-        logger.info("Chess engine stopped")
+        logger.debug("Chess engine stopped")
         logger.info("Game complete. Waiting for new game to start.")
         self.start_new_game()
 
@@ -152,7 +152,7 @@ class GameManager:
         # Check if we already made the move
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
-            logger.info(f"Our move detected on board at position {move_number}")
+            logger.debug(f"Our move detected on board at position {move_number}")
             self.board_handler.clear_arrow()
 
             if self.board_handler.validate_and_push_move(
@@ -166,7 +166,7 @@ class GameManager:
         engine_depth = self.config_manager.get(
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
-        logger.info(f"Our turn - calculating best move (depth: {engine_depth})")
+        logger.debug(f"Our turn - calculating best move (depth: {engine_depth})")
         advanced_humanized_delay("engine thinking", self.config_manager, "thinking")
 
         result = self.chess_engine.get_best_move(self.board)
@@ -189,7 +189,7 @@ class GameManager:
         self, move: chess.Move, move_handle, move_number: int, our_color: str
     ) -> int:
         """Execute move automatically"""
-        logger.info(f"AutoPlay enabled - making move: {move}")
+        logger.debug(f"AutoPlay enabled - making move: {move}")
 
         # Show arrow briefly if enabled, even in autoplay
         if self.config_manager.show_arrow:

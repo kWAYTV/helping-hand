@@ -48,14 +48,14 @@ class KeyboardHandler:
                 on_press=self.on_press, on_release=self.on_release
             )
             self.listener.start()
-            logger.info("Keyboard listener started")
+            logger.debug("Keyboard listener started")
 
     def stop_listening(self) -> None:
         """Stop the keyboard listener"""
         if self.listener:
             self.listener.stop()
             self.listener = None
-            logger.info("Keyboard listener stopped")
+            logger.debug("Keyboard listener stopped")
 
     def should_make_move(self) -> bool:
         """Check if move key is currently pressed"""

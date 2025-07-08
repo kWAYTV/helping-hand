@@ -31,9 +31,9 @@ class ConfigManager:
         """Load existing config or create default one"""
         if os.path.isfile(self._config_path):
             self.config.read(self._config_path)
-            logger.info("Loaded existing config.ini")
+            logger.debug("Loaded existing config.ini")
         else:
-            logger.info("No config.ini found, creating default config")
+            logger.debug("No config.ini found, creating default config")
             self._create_default_config()
             self.config.read(self._config_path)
 

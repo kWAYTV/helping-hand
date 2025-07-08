@@ -37,7 +37,7 @@ class BoardHandler:
 
         # Wait for follow-up to disappear
         while self.browser_manager.check_exists_by_class("follow-up"):
-            logger.debug("Found follow-up element, waiting...")
+            logger.debug("Found follow-up element, waiting for user action...")
             sleep(1)
 
         logger.debug("No follow-up found, waiting for user's first move")

@@ -1,18 +1,11 @@
 """Chess Bot - Main Entry Point"""
 
 import signal
-import sys
 
 from loguru import logger
 
 from src.core.game import GameManager
-from src.utils.helpers import clear_screen
-
-
-def signal_handler(sig, frame):
-    """Handle graceful shutdown"""
-    logger.info("Received interrupt signal, shutting down...")
-    sys.exit(0)
+from src.utils.helpers import clear_screen, signal_handler
 
 
 def main():

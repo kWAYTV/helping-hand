@@ -3,7 +3,7 @@
 import os
 import platform
 import random
-import time
+import sys
 from time import sleep
 
 from loguru import logger
@@ -105,6 +105,12 @@ def advanced_humanized_delay(
 def clear_screen() -> None:
     """Clear the terminal screen on both Windows and Unix-like systems"""
     os.system("cls" if os.name == "nt" else "clear")
+
+
+def signal_handler(sig, frame):
+    """Handle graceful shutdown"""
+    logger.info("Received interrupt signal, shutting down...")
+    sys.exit(0)
 
 
 def get_seconds(time_str: str) -> int:

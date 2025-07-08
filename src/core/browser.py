@@ -1,5 +1,7 @@
 """Browser Manager - Singleton pattern for WebDriver management"""
 
+import json
+import os
 from typing import Optional
 
 from loguru import logger
@@ -24,6 +26,7 @@ class BrowserManager:
     def __init__(self):
         if not self._initialized:
             self.driver: Optional[webdriver.Firefox] = None
+            self.cookies_file = os.path.join("deps", "lichess_cookies.json")
             self._setup_driver()
             BrowserManager._initialized = True
 
@@ -96,9 +99,123 @@ class BrowserManager:
         """Get current URL"""
         return self.driver.current_url if self.driver else ""
 
+    def save_cookies(self) -> None:
+        """Save current cookies to file"""
+        if self.driver:
+            try:
+                cookies = self.driver.get_cookies()
+                with open(self.cookies_file, "w") as f:
+                    json.dump(cookies, f, indent=2)
+                logger.info(f"Saved {len(cookies)} cookies to {self.cookies_file}")
+            except Exception as e:
+                logger.error(f"Failed to save cookies: {e}")
+
+    def load_cookies(self) -> bool:
+        """Load cookies from file and apply them"""
+        if not os.path.exists(self.cookies_file):
+            logger.info("No saved cookies found")
+            return False
+
+        try:
+            with open(self.cookies_file, "r") as f:
+                cookies = json.load(f)
+
+            # Must be on the correct domain to add cookies
+            if self.driver and self.current_url.startswith("https://lichess.org"):
+                for cookie in cookies:
+                    try:
+                        self.driver.add_cookie(cookie)
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to add cookie {cookie.get('name', 'unknown')}: {e}"
+                        )
+
+                logger.info(f"Loaded {len(cookies)} cookies")
+                return True
+            else:
+                logger.warning("Cannot load cookies - not on Lichess domain")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to load cookies: {e}")
+            return False
+
+    def clear_cookies(self) -> None:
+        """Clear saved cookies file and browser cookies"""
+        try:
+            # Clear browser cookies
+            if self.driver:
+                self.driver.delete_all_cookies()
+                logger.debug("Cleared browser cookies")
+
+            # Clear saved cookies file
+            if os.path.exists(self.cookies_file):
+                os.remove(self.cookies_file)
+                logger.info("Cleared saved cookies file")
+        except Exception as e:
+            logger.error(f"Failed to clear cookies: {e}")
+
+    def get_cookies_info(self) -> dict:
+        """Get information about saved cookies"""
+        if not os.path.exists(self.cookies_file):
+            return {"exists": False, "count": 0, "file_size": 0}
+
+        try:
+            with open(self.cookies_file, "r") as f:
+                cookies = json.load(f)
+
+            file_size = os.path.getsize(self.cookies_file)
+            return {
+                "exists": True,
+                "count": len(cookies),
+                "file_size": file_size,
+                "file_path": self.cookies_file,
+            }
+        except Exception as e:
+            logger.error(f"Failed to read cookies info: {e}")
+            return {"exists": True, "count": 0, "file_size": 0, "error": str(e)}
+
+    def is_logged_in(self) -> bool:
+        """Check if we're currently logged in to Lichess"""
+        if not self.driver:
+            return False
+
+        try:
+            # Look for user menu or account indicator
+            user_indicators = [
+                "#user_tag",  # User menu
+                ".site-title .user",  # Username in header
+                "[data-icon='H']",  # User icon
+                ".dasher .toggle",  # Dasher menu
+            ]
+
+            for selector in user_indicators:
+                try:
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    if element and element.text.strip():
+                        logger.debug(f"Login detected via selector: {selector}")
+                        return True
+                except:
+                    continue
+
+            # Check page source for login indicators
+            page_source = self.driver.page_source.lower()
+            if any(
+                indicator in page_source
+                for indicator in ["logout", "preferences", "profile"]
+            ):
+                logger.debug("Login detected via page source")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.debug(f"Error checking login status: {e}")
+            return False
+
     def close(self) -> None:
         """Close the browser"""
         if self.driver:
-            logger.info("Closing browser")
+            logger.info("Closing browser, press Ctrl+C to force quit")
             self.driver.quit()
             self.driver = None

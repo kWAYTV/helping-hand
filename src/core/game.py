@@ -56,8 +56,19 @@ class GameManager:
         logger.info("Navigating to lichess.org")
         self.browser_manager.navigate_to("https://www.lichess.org")
 
+        # Show cookie status
+        cookie_info = self.browser_manager.get_cookies_info()
+        if cookie_info["exists"]:
+            logger.info(
+                f"Found saved cookies ({cookie_info['count']} cookies, {cookie_info['file_size']} bytes)"
+            )
+        else:
+            logger.info("No saved cookies found - will use username/password login")
+
         # Sign in
-        self.lichess_auth.sign_in()
+        if not self.lichess_auth.sign_in():
+            logger.error("Failed to sign in to Lichess")
+            return
 
         # Start game loop
         logger.info("Waiting for game to start")
@@ -90,9 +101,13 @@ class GameManager:
             logger.error("Failed to get move input handle")
             return
 
-        # Get previous moves to sync board state
+            # Get previous moves to sync board state
         move_number = self.board_handler.get_previous_moves(self.board)
         logger.info(f"Ready to play. Starting at move number: {move_number}")
+
+        # Save cookies after successful game start (indicates successful login)
+        logger.info("Saving login cookies for faster future authentication")
+        self.browser_manager.save_cookies()
 
         # If this is the very start of the game, log our turn status
         if move_number == 1:

@@ -22,6 +22,44 @@ class LichessAuth:
         logger.info("Starting sign-in process")
 
         try:
+            # First try loading saved cookies
+            if self._try_cookie_login():
+                return True
+
+            # Fall back to username/password login
+            return self._username_password_login()
+
+        except Exception as e:
+            logger.error(f"Failed during sign-in process: {e}")
+            return False
+
+    def _try_cookie_login(self) -> bool:
+        """Try to login using saved cookies"""
+        logger.info("Attempting cookie-based login")
+
+        # Load cookies and check if we're logged in
+        cookies_loaded = self.browser_manager.load_cookies()
+        if not cookies_loaded:
+            return False
+
+        # Refresh the page to apply cookies
+        driver = self.browser_manager.get_driver()
+        driver.refresh()
+        time.sleep(2)
+
+        if self.browser_manager.is_logged_in():
+            logger.success("Successfully logged in using saved cookies")
+            return True
+        else:
+            logger.info("Saved cookies are invalid or expired, clearing them")
+            self.browser_manager.clear_cookies()
+            return False
+
+    def _username_password_login(self) -> bool:
+        """Login using username and password"""
+        logger.info("Attempting username/password login")
+
+        try:
             driver = self.browser_manager.get_driver()
 
             # Click sign-in button
@@ -59,10 +97,11 @@ class LichessAuth:
             if not self._handle_totp():
                 return False
 
+            logger.success("Username/password login successful")
             return True
 
         except Exception as e:
-            logger.error(f"Failed during sign-in process: {e}")
+            logger.error(f"Failed during username/password login: {e}")
             return False
 
     def _handle_totp(self) -> bool:

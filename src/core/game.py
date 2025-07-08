@@ -4,6 +4,7 @@ from time import sleep
 
 import chess
 from loguru import logger
+from selenium.webdriver.common.by import By
 
 from ..auth.lichess import LichessAuth
 from ..config import ConfigManager
@@ -134,6 +135,7 @@ class GameManager:
 
         # Game complete
         logger.info("Game completed - follow-up element detected")
+        self._log_game_result()
         self.chess_engine.quit()
         logger.info("Chess engine stopped")
         logger.info("Game complete. Waiting for new game to start.")
@@ -258,6 +260,27 @@ class GameManager:
                 return move_number + 1
 
         return move_number
+
+    def _log_game_result(self) -> None:
+        """Log the game result when game ends"""
+        try:
+            # Get score using driver directly
+            score_element = self.browser_manager.driver.find_element(
+                By.XPATH, "/html/body/div[2]/main/div[1]/rm6/l4x/div/p[1]"
+            )
+            score = score_element.text if score_element else "Score not found"
+
+            # Get result reason using driver directly
+            result_element = self.browser_manager.driver.find_element(
+                By.XPATH, "/html/body/div[2]/main/div[1]/rm6/l4x/div/p[2]"
+            )
+            result = result_element.text if result_element else "Result not found"
+
+            logger.success(f"🏁 GAME FINISHED - {score} | {result}")
+
+        except Exception as e:
+            logger.debug(f"Could not extract game result: {e}")
+            logger.info("🏁 GAME FINISHED - Result details not available")
 
     def cleanup(self) -> None:
         """Clean up resources"""

@@ -1,93 +1,134 @@
-# Chess Bot for Lichess
+# Lichess Chess Bot
 
-An automated chess bot that plays on Lichess using Stockfish engine and Selenium WebDriver.
+> Professional automated chess bot for Lichess.org featuring Stockfish engine integration, advanced humanization, and intelligent move execution.
 
-## Requirements
+## 🎯 Features
 
-- Python
+- **Stockfish Integration** - Configurable engine strength and depth
+- **Dual Operation Modes** - Automatic play or manual confirmation
+- **Advanced Humanization** - Multi-layer timing randomization with jitter
+- **2FA Support** - Automatic TOTP code generation
+- **Visual Feedback** - Move suggestion arrows and comprehensive logging
+- **Cross-Platform** - Windows, Linux, and macOS support
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.7+
 - Firefox browser
 - Lichess account
 
-## Setup
+### Installation
 
-### 1. Install Dependencies
+1. **Clone and install dependencies**
 
-```bash
-py -m pip install --upgrade -r requirements.txt
-```
+   ```bash
+   git clone <repository-url>
+   cd helping-hand
+   pip install -r requirements.txt
+   ```
 
-### 2. Configure Binaries
+2. **Download required binaries**
 
-Download and place the following binaries in their respective folders:
+   **Stockfish Engine:**
 
-**Stockfish Engine:**
+   - Download from [stockfishchess.org](https://stockfishchess.org/download/)
+   - Place in `deps/stockfish/` (auto-detected by OS)
 
-- Download from [stockfishchess.org](https://stockfishchess.org/download/)
-- Place in `deps/stockfish/`
-- Windows: `stockfish.exe`
-- Linux/Mac: `stockfish`
+   **GeckoDriver:**
 
-**GeckoDriver (Firefox WebDriver):**
+   - Download from [GitHub releases](https://github.com/mozilla/geckodriver/releases)
+   - Place in `deps/geckodriver/` (auto-detected by OS)
 
-- Download from [GitHub Releases](https://github.com/mozilla/geckodriver/releases)
-- Place in `deps/geckodriver/`
-- Windows: `geckodriver.exe`
-- Linux/Mac: `geckodriver`
+3. **Configure the bot**
 
-### 3. Configuration
+   ```bash
+   cp config.example.ini config.ini
+   # Edit config.ini with your credentials
+   ```
 
-```bash
-cp config.example.ini config.ini
-```
+4. **Run the bot**
+   ```bash
+   python main.py
+   ```
 
-Edit `config.ini` with your Lichess credentials and preferences.
+## ⚙️ Configuration
 
-#### Configuration Options
+### Engine Settings
 
-**[engine]**
+| Key           | Description                             | Default       |
+| ------------- | --------------------------------------- | ------------- |
+| `path`        | Stockfish executable path               | Auto-detected |
+| `depth`       | Search depth (higher = stronger/slower) | 5             |
+| `hash`        | Memory allocation (MB)                  | 2048          |
+| `skill-level` | Engine strength (0-20)                  | 14            |
 
-- `path`: Path to Stockfish executable (auto-detected based on OS)
-- `depth`: Search depth for move calculation (higher = stronger but slower)
-- `hash`: Memory allocation for engine in MB
-- `skill-level`: Engine skill level (0-20, where 20 is strongest)
+### Lichess Authentication
 
-**[lichess]**
+| Key           | Description         | Required |
+| ------------- | ------------------- | -------- |
+| `username`    | Lichess username    | Yes      |
+| `password`    | Lichess password    | Yes      |
+| `totp-secret` | 2FA secret (base32) | Optional |
 
-- `username`: Your Lichess username
-- `password`: Your Lichess password
-- `totp-secret`: Optional TOTP secret for 2FA (base32 encoded from your authenticator app)
+### Bot Behavior
 
-**[general]**
+| Key         | Description              | Default |
+| ----------- | ------------------------ | ------- |
+| `move-key`  | Manual execution key     | `end`   |
+| `arrow`     | Show move suggestions    | `true`  |
+| `auto-play` | Automatic vs manual play | `true`  |
 
-- `move-key`: Key to press for executing suggested moves (default: 'end')
-- `arrow`: Show visual arrows for suggested moves (true/false)
-- `auto-play`: Automatically play moves vs manual confirmation (true/false)
+### Humanization
 
-**[humanization]**
+| Key                                         | Description            | Range    |
+| ------------------------------------------- | ---------------------- | -------- |
+| `min-delay` / `max-delay`                   | Base action delays     | 0.3-1.8s |
+| `moving-min-delay` / `moving-max-delay`     | Move execution delays  | 0.5-2.5s |
+| `thinking-min-delay` / `thinking-max-delay` | Engine thinking delays | 0.8-3.0s |
 
-- `min-delay` / `max-delay`: Base delay range for actions (seconds)
-- `moving-min-delay` / `moving-max-delay`: Delay range for move execution
-- `thinking-min-delay` / `thinking-max-delay`: Delay range for engine thinking
+> **Note:** The bot automatically adds 0-1s jitter and micro-variations to all delays for natural behavior.
 
-The bot adds additional jitter (0-1s) and micro-variations to all delays for natural behavior.
+## 🔐 Two-Factor Authentication
 
-#### TOTP Setup (Optional)
+For accounts with 2FA enabled:
 
-If you have 2FA enabled on Lichess:
+1. **Obtain your TOTP secret**
 
-1. In your authenticator app, reveal the secret key (usually base32 encoded)
-2. Add it to `totp-secret` in your config
-3. The bot will automatically generate and input TOTP codes when required
+   - Open your authenticator app
+   - Reveal the secret key (base32 encoded string)
 
-If no `totp-secret` is provided, the bot will wait for manual TOTP input.
+2. **Add to configuration**
 
-## Usage
+   ```ini
+   [lichess]
+   totp-secret = YOUR_BASE32_SECRET_HERE
+   ```
 
-```bash
-python main.py
-```
+3. **Automatic handling**
+   - Bot detects 2FA prompts automatically
+   - Generates and inputs TOTP codes
+   - Falls back to manual input if no secret provided
 
-**Modes:**
+## 🎮 Operation Modes
 
-- **AutoPlay**: Bot makes moves automatically
-- **Suggestion**: Bot suggests moves, press configured key to execute
+### AutoPlay Mode
+
+- Bot plays moves automatically
+- Configurable delays and humanization
+- Suitable for unattended operation
+
+### Suggestion Mode
+
+- Bot suggests optimal moves
+- Press configured key to execute
+- Ideal for learning and analysis
+
+## 📝 License
+
+This project is for educational purposes only. Users are responsible for compliance with Lichess terms of service and applicable laws.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure all changes maintain the project's focus on reliability and anti-detection measures.

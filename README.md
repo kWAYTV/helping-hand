@@ -2,6 +2,12 @@
 
 An automated chess bot that plays on Lichess using Stockfish engine and Selenium WebDriver.
 
+## Requirements
+
+- Python
+- Firefox browser
+- Lichess account
+
 ## Setup
 
 ### 1. Install Dependencies
@@ -85,9 +91,3 @@ python main.py
 
 - **AutoPlay**: Bot makes moves automatically
 - **Suggestion**: Bot suggests moves, press configured key to execute
-
-## Requirements
-
-- Python 3.7+
-- Firefox browser
-- Lichess account

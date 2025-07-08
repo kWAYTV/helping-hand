@@ -1,6 +1,5 @@
-"""Chess Engine - Stockfish engine management"""
+"""Chess Engine - Stockfish integration"""
 
-import subprocess
 from typing import Any, Dict, Optional
 
 import chess
@@ -11,7 +10,7 @@ from ..config import ConfigManager
 
 
 class ChessEngine:
-    """Manages Stockfish chess engine interactions"""
+    """Chess engine wrapper for Stockfish"""
 
     def __init__(self, config_manager: ConfigManager):
         self.config_manager = config_manager
@@ -19,26 +18,41 @@ class ChessEngine:
         self._initialize_engine()
 
     def _initialize_engine(self) -> None:
-        """Initialize the Stockfish engine"""
-        engine_config = self.config_manager.engine_config
-        engine_path = engine_config.get("path", "stockfish")
-
+        """Initialize the chess engine"""
         try:
-            # Initialize engine
-            self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
-            logger.info(f"Chess engine initialized: {engine_path}")
+            engine_config = self.config_manager.engine_config
+            # Use standardized lowercase keys with backward compatibility
+            engine_path = engine_config.get("path", engine_config.get("Path", ""))
 
-            # Configure engine
-            self.engine.configure(
-                {
-                    "Hash": int(engine_config.get("hash", "2048")),
-                    "Skill Level": self.config_manager.get_skill_level(),
-                }
+            if not engine_path:
+                raise ValueError("Engine path not found in config")
+
+            self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
+            logger.info(f"Started chess engine: {engine_path}")
+
+            # Configure engine options using standardized lowercase keys
+            skill_level = int(
+                engine_config.get(
+                    "skilllevel",
+                    engine_config.get(
+                        "skill level", engine_config.get("Skill Level", 14)
+                    ),
+                )
             )
-            logger.info("Engine configured successfully")
+            hash_size = int(engine_config.get("hash", engine_config.get("Hash", 2048)))
+
+            options = {
+                "Skill Level": skill_level,
+                "Hash": hash_size,
+            }
+
+            self.engine.configure(options)
+            logger.info(
+                f"Engine configured - Skill: {options['Skill Level']}, Hash: {options['Hash']}"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to initialize chess engine: {e}")
+            logger.error(f"Failed to start chess engine: {e}")
             raise
 
     def get_best_move(
@@ -49,7 +63,12 @@ class ChessEngine:
             raise RuntimeError("Engine not initialized")
 
         if depth is None:
-            depth = int(self.config_manager.get("engine", "depth", "5"))
+            # Use standardized lowercase key with backward compatibility
+            depth = int(
+                self.config_manager.get(
+                    "engine", "depth", self.config_manager.get("engine", "Depth", 5)
+                )
+            )
 
         logger.debug(f"Calculating best move (depth: {depth})")
 

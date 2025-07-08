@@ -24,13 +24,6 @@ class ChessEngine:
         engine_path = engine_config.get("path", "stockfish")
 
         try:
-            # Test if engine exists and is working
-            result = subprocess.run(
-                [engine_path], capture_output=True, text=True, timeout=5
-            )
-            if result.returncode != 0:
-                raise FileNotFoundError(f"Engine at {engine_path} failed to start")
-
             # Initialize engine
             self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
             logger.info(f"Chess engine initialized: {engine_path}")

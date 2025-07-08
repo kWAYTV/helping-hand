@@ -129,17 +129,25 @@ class BoardHandler:
         logger.info("Getting previous moves from board")
         temp_move_number = 1
 
-        while temp_move_number < 999:  # Safety limit
-            move_xpath = (
-                f"/html/body/div[2]/main/div[1]/rm6/l4x/kwdb[{temp_move_number}]"
+        # First check if there are ANY moves at all
+        first_move = self.find_move_by_alternatives(1)
+        if not first_move:
+            logger.info(
+                "No moves found on board - this appears to be the start of the game"
             )
-            move_element = self.browser_manager.check_exists_by_xpath(move_xpath)
+            return 1  # Start from move 1
 
-            if not move_element:
-                move_element = self.find_move_by_alternatives(temp_move_number)
+        while temp_move_number < 999:  # Safety limit
+            move_element = self.find_move_by_alternatives(temp_move_number)
 
             if move_element:
                 move_text = move_element.text.strip()
+                if (
+                    not move_text or move_text == "..."
+                ):  # Skip empty or placeholder moves
+                    temp_move_number += 1
+                    continue
+
                 logger.debug(f"Found previous move {temp_move_number}: {move_text}")
                 try:
                     board.push_san(move_text)
@@ -154,9 +162,15 @@ class BoardHandler:
                 logger.info(
                     f"No more previous moves found. Total moves processed: {temp_move_number - 1}"
                 )
-                # Save debug info if we expected more moves but couldn't find them
-                if temp_move_number <= 3:  # If we can't even find the first few moves
-                    logger.warning("Could not find expected moves, saving debug info")
+                # Only save debug info if we have moves but can't parse them
+                if temp_move_number == 1:
+                    logger.info("No moves on board - starting fresh game")
+                elif (
+                    temp_move_number <= 3
+                ):  # If we can't find early moves (might be selector issue)
+                    logger.warning(
+                        "Could not find expected moves, investigating selectors"
+                    )
                     self.debug_utils.debug_move_list_structure(self.driver)
                     self.debug_utils.save_debug_info(
                         self.driver, temp_move_number, board
@@ -167,14 +181,12 @@ class BoardHandler:
 
     def check_for_move(self, move_number: int) -> Optional[str]:
         """Check if a move exists at the given position and return move text"""
-        move_xpath = f"/html/body/div[2]/main/div[1]/rm6/l4x/kwdb[{move_number}]"
-        move_element = self.browser_manager.check_exists_by_xpath(move_xpath)
-
-        if not move_element:
-            move_element = self.find_move_by_alternatives(move_number)
+        move_element = self.find_move_by_alternatives(move_number)
 
         if move_element:
-            return move_element.text.strip()
+            move_text = move_element.text.strip()
+            if move_text and move_text != "...":  # Exclude empty and placeholder moves
+                return move_text
 
         return None
 
@@ -249,6 +261,13 @@ class BoardHandler:
 
     def draw_arrow(self, move: chess.Move, our_color: str) -> None:
         """Draw an arrow showing the suggested move"""
+        move_str = str(move)
+        src_square = move_str[:2]
+        dst_square = move_str[2:]
+        logger.debug(
+            f"Drawing move arrow: {src_square} → {dst_square} (green circle = source, gold circle = destination)"
+        )
+
         transform = self._get_piece_transform(move, our_color)
 
         move_str = str(move)
@@ -291,6 +310,8 @@ class BoardHandler:
             }
 
             g = document.getElementsByTagName("g")[0];
+            
+            // Create the main arrow line
             var child_g = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             child_g.setAttribute("stroke","#15781B");
             child_g.setAttribute("stroke-width","0.15625");
@@ -303,6 +324,26 @@ class BoardHandler:
             child_g.setAttribute("y2", y2);
             child_g.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,green`);
             g.appendChild(child_g);
+            
+            // Add subtle destination indicator (small dot)
+            var destIndicator = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            destIndicator.setAttribute("cx", x2);
+            destIndicator.setAttribute("cy", y2);
+            destIndicator.setAttribute("r", "0.08");
+            destIndicator.setAttribute("fill", "#FFD700");
+            destIndicator.setAttribute("fill-opacity", "0.9");
+            destIndicator.setAttribute("stroke", "#15781B");
+            destIndicator.setAttribute("stroke-width", "0.02");
+            destIndicator.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,destination`);
+            g.appendChild(destIndicator);
+            
+            // Add very subtle pulsing to destination
+            var pulseAnim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+            pulseAnim.setAttribute("attributeName", "r");
+            pulseAnim.setAttribute("values", "0.08;0.12;0.08");
+            pulseAnim.setAttribute("dur", "2s");
+            pulseAnim.setAttribute("repeatCount", "indefinite");
+            destIndicator.appendChild(pulseAnim);
             """,
             transform[0],
             transform[1],

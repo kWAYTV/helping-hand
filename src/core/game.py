@@ -94,6 +94,15 @@ class GameManager:
         move_number = self.board_handler.get_previous_moves(self.board)
         logger.info(f"Ready to play. Starting at move number: {move_number}")
 
+        # If this is the very start of the game, log our turn status
+        if move_number == 1:
+            if our_color == "W":
+                logger.info("Starting fresh game as White - we move first")
+            else:
+                logger.info(
+                    "Starting fresh game as Black - waiting for White's first move"
+                )
+
         # Main game loop
         while not self.board_handler.is_game_over():
             our_turn = self._is_our_turn(our_color)
@@ -144,7 +153,10 @@ class GameManager:
         advanced_humanized_delay("engine thinking", self.config_manager, "thinking")
 
         result = self.chess_engine.get_best_move(self.board)
-        logger.info(f"Engine suggests: {result.move}")
+        move_str = str(result.move)
+        src_square = move_str[:2]
+        dst_square = move_str[2:]
+        logger.info(f"Engine suggests: {result.move} ({src_square} → {dst_square})")
 
         # Handle move execution based on mode
         if self.config_manager.is_autoplay_enabled:
@@ -204,8 +216,15 @@ class GameManager:
         else:
             # Just suggesting - show the move and wait
             move_key = self.config_manager.move_key
-            logger.debug(f"Suggesting move: {move} (press {move_key} to execute)")
-            logger.info(f"💡 Suggested move: {move} (press {move_key} to execute)")
+            move_str = str(move)
+            src_square = move_str[:2]
+            dst_square = move_str[2:]
+            logger.debug(
+                f"Suggesting move: {move} ({src_square} → {dst_square}) (press {move_key} to execute)"
+            )
+            logger.info(
+                f"💡 Suggested move: {move} ({src_square} → {dst_square}) - press {move_key} to execute"
+            )
             sleep(0.1)  # Small delay to avoid spam
 
             return move_number

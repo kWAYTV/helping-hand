@@ -82,16 +82,22 @@ class DebugUtils:
         """Debug function to inspect the actual HTML structure of moves"""
         logger.info("=== DEBUGGING MOVE LIST STRUCTURE ===")
 
-        # Try different possible selectors
+        # Try different possible selectors (modern first, then legacy)
         selectors_to_try = [
+            # Modern selectors
+            ".moves .move",
+            ".move-list .move",
+            ".game-moves .move",
+            "[data-testid*='move']",
+            ".moves span",
+            ".move",
+            ".pgn .move",
+            "moveOn",
+            "move",
+            # Legacy selectors
+            "kwdb",
             "rm6",
             "l4x",
-            "kwdb",
-            ".move-list",
-            ".moves",
-            "[data-testid*='move']",
-            ".move",
-            "moveOn",
             "san",
         ]
 
@@ -125,8 +131,18 @@ class DebugUtils:
             page_source = driver.page_source
             import re
 
-            # Look for move-related patterns in HTML
-            patterns = ["kwdb", "l4x", "rm6", "move-list", "san", "moveOn"]
+            # Look for move-related patterns in HTML (modern and legacy)
+            patterns = [
+                "move",
+                "moves",
+                "move-list",
+                "pgn",
+                "kwdb",
+                "l4x",
+                "rm6",
+                "san",
+                "moveOn",
+            ]
             for pattern in patterns:
                 matches = re.findall(f".*{pattern}.*", page_source, re.IGNORECASE)
                 if matches:

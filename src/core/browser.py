@@ -84,6 +84,35 @@ class BrowserManager:
         """Execute JavaScript in the browser"""
         return self.driver.execute_script(script, *args)
 
+    def hide_username_elements(self) -> None:
+        """Hide username elements to prevent data leakage"""
+        if not self.driver:
+            return
+
+        # Hide username after login
+        self._hide_element_by_xpath('//*[@id="user_tag"]')
+
+        # Hide username in game page
+        self._hide_element_by_xpath("/html/body/div[2]/main/div[1]/div[6]/a")
+
+        logger.debug("Username elements hidden for privacy")
+
+    def _hide_element_by_xpath(self, xpath: str) -> None:
+        """Hide element by XPath using JavaScript"""
+        script = f"""
+        try {{
+            var element = document.evaluate('{xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            if (element) {{
+                element.style.visibility = 'hidden';
+                element.style.opacity = '0';
+                console.log('Hidden element at xpath: {xpath}');
+            }}
+        }} catch (e) {{
+            console.log('Could not hide element at xpath: {xpath}', e);
+        }}
+        """
+        self.execute_script(script)
+
     def save_screenshot(self, filename: str) -> None:
         """Save a screenshot"""
         if self.driver:

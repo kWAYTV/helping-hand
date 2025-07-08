@@ -24,7 +24,7 @@
 1. **Clone and install dependencies**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/kWAYTV/helping-hand.git
    cd helping-hand
    pip install -r requirements.txt
    ```
@@ -51,7 +51,7 @@
 3. **Configure the bot**
 
    ```bash
-   cp config.example.ini config.ini
+   config.example.ini --> config.ini
    # Edit config.ini with your credentials
    ```
 

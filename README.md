@@ -79,6 +79,21 @@
 | `move-key`  | Manual execution key     | `end`   |
 | `arrow`     | Show move suggestions    | `true`  |
 | `auto-play` | Automatic vs manual play | `true`  |
+| `log-level` | Logging verbosity level  | `INFO`  |
+
+### Logging Levels
+
+Control the amount of output shown during bot operation:
+
+| Level      | Description                         | Use Case               |
+| ---------- | ----------------------------------- | ---------------------- |
+| `TRACE`    | Extremely detailed debugging output | Development debugging  |
+| `DEBUG`    | Internal details (setup, timing)    | Troubleshooting issues |
+| `INFO`     | Essential information (default)     | Normal operation       |
+| `SUCCESS`  | Only successful operations          | Quiet but informative  |
+| `WARNING`  | Warnings and errors only            | Minimal output         |
+| `ERROR`    | Error messages only                 | Silent operation       |
+| `CRITICAL` | Critical errors only                | Emergency logging      |
 
 ### Humanization
 

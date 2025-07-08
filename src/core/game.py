@@ -42,11 +42,11 @@ class GameManager:
 
         # Log current configuration
         if self.config_manager.is_autoplay_enabled:
-            logger.info("🤖 AutoPlay MODE: Bot will make moves automatically")
+            logger.info("AutoPlay MODE: Bot will make moves automatically")
         else:
             move_key = self.config_manager.move_key
             logger.info(
-                f"💭 Suggestion MODE: Bot will suggest moves (press '{move_key}' to execute)"
+                f"Suggestion MODE: Bot will suggest moves (press '{move_key}' to execute)"
             )
 
         # Start keyboard listener
@@ -240,7 +240,7 @@ class GameManager:
                 f"Suggesting move: {move} ({src_square} → {dst_square}) (press {move_key} to execute)"
             )
             logger.info(
-                f"💡 Suggested move: {move} ({src_square} → {dst_square}) - press {move_key} to execute"
+                f"Suggest move: {move} ({src_square} → {dst_square}) - press {move_key} to execute"
             )
             sleep(0.1)  # Small delay to avoid spam
 
@@ -276,11 +276,11 @@ class GameManager:
             )
             result = result_element.text if result_element else "Result not found"
 
-            logger.success(f"🏁 GAME FINISHED - {score} | {result}")
+            logger.success(f"GAME FINISHED - {score} | {result}")
 
         except Exception as e:
             logger.debug(f"Could not extract game result: {e}")
-            logger.info("🏁 GAME FINISHED - Result details not available")
+            logger.info("GAME FINISHED - Result details not available")
 
     def cleanup(self) -> None:
         """Clean up resources"""

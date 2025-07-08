@@ -54,6 +54,7 @@ class ConfigManager:
             "move-key": "end",
             "arrow": "true",
             "auto-play": "true",
+            "log-level": "INFO",
         }
         self.config["humanization"] = {
             "min-delay": "0.3",
@@ -140,6 +141,25 @@ class ConfigManager:
     def humanization_config(self) -> Dict[str, str]:
         """Get humanization configuration"""
         return self.get_section("humanization")
+
+    @property
+    def log_level(self) -> str:
+        """Get the log level"""
+        level = self.get("general", "log-level", "INFO").upper()
+        # Validate log level
+        valid_levels = [
+            "TRACE",
+            "DEBUG",
+            "INFO",
+            "SUCCESS",
+            "WARNING",
+            "ERROR",
+            "CRITICAL",
+        ]
+        if level not in valid_levels:
+            logger.warning(f"Invalid log level '{level}', using INFO")
+            return "INFO"
+        return level
 
     def get_humanization_delay(self, delay_type: str) -> tuple[float, float]:
         """Get min/max delays for humanization"""

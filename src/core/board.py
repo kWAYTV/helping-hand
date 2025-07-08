@@ -237,37 +237,13 @@ class BoardHandler:
         """Clear any arrows on the board"""
         self.browser_manager.execute_script(
             """
-            var g = document.getElementsByTagName("g")[0];
-            if (g) {
-                // Remove professional arrows
-                var proArrows = g.querySelectorAll('[data-arrow="professional"]');
-                proArrows.forEach(function(element) {
-                    element.remove();
-                });
-                
-                // Remove enhanced arrows (backward compatibility)
-                var enhancedElements = g.querySelectorAll('[data-arrow="enhanced"]');
-                enhancedElements.forEach(function(element) {
-                    element.remove();
-                });
-                
-                // Also clear any legacy arrows (backward compatibility)
-                var legacyArrows = g.querySelectorAll('line[cgHash*="green"]');
-                legacyArrows.forEach(function(arrow) {
-                    arrow.remove();
-                });
-                
-                // Clear any highlight circles
-                var highlights = g.querySelectorAll('[data-highlight]');
-                highlights.forEach(function(highlight) {
-                    highlight.remove();
-                });
-            }
+            g = document.getElementsByTagName("g")[0];
+            g.textContent = "";
             """
         )
 
     def draw_arrow(self, move: chess.Move, our_color: str) -> None:
-        """Draw a professional arrow showing the suggested move"""
+        """Draw an arrow showing the suggested move"""
         transform = self._get_piece_transform(move, our_color)
 
         move_str = str(move)
@@ -289,58 +265,44 @@ class BoardHandler:
             var src = arguments[5];
             var dst = arguments[6];
 
-            // Get or create the defs element
-            var defs = document.getElementsByTagName("defs")[0];
-            if (!defs) {
-                defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-                document.getElementsByTagName("svg")[0].appendChild(defs);
+            defs = document.getElementsByTagName("defs")[0];
+
+            child_defs = document.getElementsByTagName("marker")[0];
+
+            if (child_defs == null)
+            {
+                child_defs = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+                child_defs.setAttribute("id", "arrowhead-g");
+                child_defs.setAttribute("orient", "auto");
+                child_defs.setAttribute("markerWidth", "4");
+                child_defs.setAttribute("markerHeight", "8");
+                child_defs.setAttribute("refX", "2.05");
+                child_defs.setAttribute("refY", "2.01");
+                child_defs.setAttribute("cgKey", "g");
+
+                path = document.createElement('path')
+                path.setAttribute("d", "M0,0 V4 L3,2 Z");
+                path.setAttribute("fill", "#15781B");  
+                child_defs.appendChild(path);
+
+                defs.appendChild(child_defs);
             }
 
-            // Create professional arrowhead
-            var arrowId = "pro-arrowhead";
-            var existingArrow = document.getElementById(arrowId);
-            if (!existingArrow) {
-                var marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
-                marker.setAttribute("id", arrowId);
-                marker.setAttribute("orient", "auto");
-                marker.setAttribute("markerWidth", "6");
-                marker.setAttribute("markerHeight", "8");
-                marker.setAttribute("refX", "5");
-                marker.setAttribute("refY", "4");
-                marker.setAttribute("markerUnits", "strokeWidth");
-                
-                var arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                arrowPath.setAttribute("d", "M0,0 L0,8 L6,4 z");
-                arrowPath.setAttribute("fill", "#2E7D32");
-                arrowPath.setAttribute("stroke", "#1B5E20");
-                arrowPath.setAttribute("stroke-width", "0.5");
-                
-                marker.appendChild(arrowPath);
-                defs.appendChild(marker);
-            }
+            g = document.getElementsByTagName("g")[0];
 
-            // Clear previous arrows
-            var g = document.getElementsByTagName("g")[0];
-            var existingArrows = g.querySelectorAll('[data-arrow="professional"]');
-            existingArrows.forEach(function(arrow) {
-                arrow.remove();
-            });
+            var child_g = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            child_g.setAttribute("stroke","#15781B");
+            child_g.setAttribute("stroke-width","0.15625");
+            child_g.setAttribute("stroke-linecap","round");
+            child_g.setAttribute("marker-end","url(#arrowhead-g)");
+            child_g.setAttribute("opacity","1");
+            child_g.setAttribute("x1", x1);
+            child_g.setAttribute("y1", y1);
+            child_g.setAttribute("x2", x2);
+            child_g.setAttribute("y2", y2);
+            child_g.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,green`);
 
-            // Create professional arrow line
-            var arrowLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            arrowLine.setAttribute("stroke", "#2E7D32");
-            arrowLine.setAttribute("stroke-width", "3");
-            arrowLine.setAttribute("stroke-linecap", "round");
-            arrowLine.setAttribute("marker-end", "url(#" + arrowId + ")");
-            arrowLine.setAttribute("opacity", "0.9");
-            arrowLine.setAttribute("x1", x1);
-            arrowLine.setAttribute("y1", y1);
-            arrowLine.setAttribute("x2", x2);
-            arrowLine.setAttribute("y2", y2);
-            arrowLine.setAttribute("data-arrow", "professional");
-            arrowLine.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,professional`);
-
-            g.appendChild(arrowLine);
+            g.appendChild(child_g);
             """,
             transform[0],
             transform[1],

@@ -217,21 +217,22 @@ class BoardHandler:
         """Execute a move through the interface"""
         logger.info(f"Executing move: {move}")
 
-        # Humanized delay before making the move
+        # Humanized delay before making the move (keep arrow visible)
         humanized_delay_from_config(config_manager, "moving", "move execution")
-
-        self.clear_arrow()
 
         logger.info(f"Move {ceil(move_number / 2)}: {move} [us]")
 
-        # Humanized typing delay
+        # Humanized typing delay (keep arrow visible)
         humanized_delay_from_config(config_manager, "general", "move input")
         move_handle.send_keys(Keys.RETURN)
         move_handle.clear()
 
-        # Type move with slight delay
+        # Type move with slight delay (keep arrow visible)
         humanized_delay_from_config(config_manager, "general", "typing move")
         move_handle.send_keys(str(move))
+
+        # Clear arrow only after move is completely executed
+        self.clear_arrow()
 
     def clear_arrow(self) -> None:
         """Clear any arrows on the board"""
@@ -272,17 +273,19 @@ class BoardHandler:
             if (child_defs == null)
             {
                 child_defs = document.createElementNS("http://www.w3.org/2000/svg", "marker");
-                child_defs.setAttribute("id", "arrowhead-g");
+                child_defs.setAttribute("id", "arrowhead-custom");
                 child_defs.setAttribute("orient", "auto");
-                child_defs.setAttribute("markerWidth", "4");
-                child_defs.setAttribute("markerHeight", "8");
-                child_defs.setAttribute("refX", "2.05");
-                child_defs.setAttribute("refY", "2.01");
-                child_defs.setAttribute("cgKey", "g");
+                child_defs.setAttribute("markerWidth", "6");
+                child_defs.setAttribute("markerHeight", "10");
+                child_defs.setAttribute("refX", "3");
+                child_defs.setAttribute("refY", "3");
+                child_defs.setAttribute("cgKey", "custom");
 
                 path = document.createElement('path')
-                path.setAttribute("d", "M0,0 V4 L3,2 Z");
-                path.setAttribute("fill", "#15781B");  
+                path.setAttribute("d", "M0,0 V6 L4,3 Z");
+                path.setAttribute("fill", "#4CAF50");
+                path.setAttribute("stroke", "#2E7D32");
+                path.setAttribute("stroke-width", "0.3");
                 child_defs.appendChild(path);
 
                 defs.appendChild(child_defs);
@@ -291,16 +294,16 @@ class BoardHandler:
             g = document.getElementsByTagName("g")[0];
 
             var child_g = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            child_g.setAttribute("stroke","#15781B");
-            child_g.setAttribute("stroke-width","0.15625");
-            child_g.setAttribute("stroke-linecap","round");
-            child_g.setAttribute("marker-end","url(#arrowhead-g)");
-            child_g.setAttribute("opacity","1");
+            child_g.setAttribute("stroke", "#4CAF50");
+            child_g.setAttribute("stroke-width", "0.25");
+            child_g.setAttribute("stroke-linecap", "round");
+            child_g.setAttribute("marker-end", "url(#arrowhead-custom)");
+            child_g.setAttribute("opacity", "0.95");
             child_g.setAttribute("x1", x1);
             child_g.setAttribute("y1", y1);
             child_g.setAttribute("x2", x2);
             child_g.setAttribute("y2", y2);
-            child_g.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,green`);
+            child_g.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,custom`);
 
             g.appendChild(child_g);
             """,

@@ -1,7 +1,13 @@
 """Lichess Authentication"""
 
+import time
+
+import pyotp
 from loguru import logger
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from ..config import ConfigManager
 from ..core.browser import BrowserManager
@@ -52,8 +58,95 @@ class LichessAuth:
             ).click()
             logger.info("Submitted login form")
 
+            # Handle TOTP if needed
+            if not self._handle_totp():
+                return False
+
             return True
 
         except Exception as e:
             logger.error(f"Failed during sign-in process: {e}")
             return False
+
+    def _handle_totp(self) -> bool:
+        """Handle TOTP authentication if required"""
+        try:
+            driver = self.browser_manager.get_driver()
+
+            # Wait a bit to see if TOTP is required
+            time.sleep(2)
+
+            # Check if we need TOTP (look for "authentication code" text)
+            page_text = driver.page_source.lower()
+            if "authentication code" not in page_text:
+                logger.info("No TOTP required")
+                return True
+
+            logger.info("TOTP authentication required")
+
+            # Try to find TOTP input field
+            totp_field = None
+            possible_selectors = [
+                "input[name='token']",
+                "input[placeholder*='code']",
+                "input[type='text'][maxlength='6']",
+                "#form3-token",
+                ".form-group input[type='text']",
+            ]
+
+            for selector in possible_selectors:
+                try:
+                    totp_field = driver.find_element(By.CSS_SELECTOR, selector)
+                    break
+                except:
+                    continue
+
+            if not totp_field:
+                logger.error("Could not find TOTP input field")
+                return False
+
+            # Get TOTP code
+            totp_code = self._get_totp_code()
+            if not totp_code:
+                logger.error("Could not generate TOTP code")
+                return False
+
+            # Enter TOTP code
+            totp_field.clear()
+            totp_field.send_keys(totp_code)
+            logger.info("Entered TOTP code")
+
+            # Submit TOTP form
+            try:
+                submit_button = driver.find_element(
+                    By.CSS_SELECTOR, "button[type='submit']"
+                )
+                submit_button.click()
+                logger.info("Submitted TOTP form")
+            except:
+                # Try alternative submit methods
+                totp_field.submit()
+                logger.info("Submitted TOTP form via input")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to handle TOTP: {e}")
+            return False
+
+    def _get_totp_code(self) -> str:
+        """Generate TOTP code from secret"""
+        totp_secret = self.config_manager.totp_secret
+
+        if not totp_secret:
+            logger.error("No TOTP secret configured")
+            return ""
+
+        try:
+            totp = pyotp.TOTP(totp_secret)
+            code = totp.now()
+            logger.info(f"Generated TOTP code: {code}")
+            return code
+        except Exception as e:
+            logger.error(f"Failed to generate TOTP code: {e}")
+            return ""

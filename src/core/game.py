@@ -14,7 +14,7 @@ from ..core.browser import BrowserManager
 from ..core.engine import ChessEngine
 from ..input.keyboard_handler import KeyboardHandler
 from ..utils.debug import DebugUtils
-from ..utils.helpers import humanized_delay
+from ..utils.helpers import advanced_humanized_delay, humanized_delay
 
 
 class GameManager:
@@ -25,7 +25,9 @@ class GameManager:
         self.config_manager = ConfigManager()
         self.browser_manager = BrowserManager()
         self.debug_utils = DebugUtils()
-        self.board_handler = BoardHandler(self.browser_manager, self.debug_utils)
+        self.board_handler = BoardHandler(
+            self.browser_manager, self.debug_utils, self.config_manager
+        )
         self.chess_engine = ChessEngine(self.config_manager)
         self.keyboard_handler = KeyboardHandler(self.config_manager)
         self.lichess_auth = LichessAuth(self.config_manager, self.browser_manager)
@@ -141,7 +143,7 @@ class GameManager:
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
         logger.info(f"Our turn - calculating best move (depth: {engine_depth})")
-        humanized_delay(0.3, 1.0, "engine thinking")
+        advanced_humanized_delay("engine thinking", self.config_manager, "thinking")
 
         result = self.chess_engine.get_best_move(self.board)
         logger.info(f"Engine suggests: {result.move}")
@@ -167,7 +169,7 @@ class GameManager:
             logger.debug("Showing move arrow before auto execution")
             self.board_handler.draw_arrow(move, our_color)
             # Brief delay to show the arrow
-            humanized_delay(0.5, 1.0, "showing arrow")
+            advanced_humanized_delay("showing arrow", self.config_manager, "base")
 
         self.board_handler.execute_move(move, move_handle, move_number)
         self.board.push(move)

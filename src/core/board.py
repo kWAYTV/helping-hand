@@ -14,16 +14,22 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from ..core.browser import BrowserManager
 from ..utils.debug import DebugUtils
-from ..utils.helpers import humanized_delay
+from ..utils.helpers import advanced_humanized_delay, humanized_delay
 
 
 class BoardHandler:
     """Handles chess board interactions and move detection"""
 
-    def __init__(self, browser_manager: BrowserManager, debug_utils: DebugUtils):
+    def __init__(
+        self,
+        browser_manager: BrowserManager,
+        debug_utils: DebugUtils,
+        config_manager=None,
+    ):
         self.browser_manager = browser_manager
         self.debug_utils = debug_utils
         self.driver = browser_manager.get_driver()
+        self.config_manager = config_manager
 
     def wait_for_game_ready(self) -> bool:
         """Wait for game to be ready and return True if successful"""
@@ -34,7 +40,7 @@ class BoardHandler:
             logger.debug("Found follow-up element, waiting...")
             sleep(1)
 
-        logger.info("No follow-up found, waiting for move input box")
+        logger.info("No follow-up found, waiting for user's first move")
 
         try:
             # Wait for move input box
@@ -202,21 +208,32 @@ class BoardHandler:
         """Execute a move through the interface"""
         logger.info(f"Executing move: {move}")
 
-        # Humanized delay before making the move
-        humanized_delay(0.5, 1.5, "move execution")
+        # Advanced humanized delay before making the move
+        if self.config_manager:
+            advanced_humanized_delay("move execution", self.config_manager, "moving")
+        else:
+            humanized_delay(0.5, 1.5, "move execution")
 
         self.clear_arrow()
 
         logger.info(f"Move {ceil(move_number / 2)}: {move} [us]")
         print(f"{ceil(move_number / 2)}. {move} [us]")
 
-        # Humanized typing delay
-        humanized_delay(0.3, 0.8, "move input")
+        # Advanced humanized typing delay
+        if self.config_manager:
+            advanced_humanized_delay("move input", self.config_manager, "base")
+        else:
+            humanized_delay(0.3, 0.8, "move input")
+
         move_handle.send_keys(Keys.RETURN)
         move_handle.clear()
 
-        # Type move with slight delay
-        humanized_delay(0.2, 0.5, "typing move")
+        # Type move with slight delay and additional jitter
+        if self.config_manager:
+            advanced_humanized_delay("typing move", self.config_manager, "base")
+        else:
+            humanized_delay(0.2, 0.5, "typing move")
+
         move_handle.send_keys(str(move))
 
     def clear_arrow(self) -> None:

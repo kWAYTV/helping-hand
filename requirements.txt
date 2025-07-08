@@ -3,3 +3,4 @@ loguru
 configparser
 chess
 pynput
+pyotp

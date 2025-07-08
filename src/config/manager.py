@@ -43,13 +43,25 @@ class ConfigManager:
             "path": get_stockfish_path(),
             "depth": "5",
             "hash": "2048",
-            "skilllevel": "14",
+            "skill-level": "14",
         }
-        self.config["lichess"] = {"username": "user", "password": "pass"}
+        self.config["lichess"] = {
+            "username": "user",
+            "password": "pass",
+            "totp-secret": "",
+        }
         self.config["general"] = {
-            "movekey": "end",
+            "move-key": "end",
             "arrow": "true",
-            "autoplay": "true",
+            "auto-play": "true",
+        }
+        self.config["humanization"] = {
+            "min-delay": "0.3",
+            "max-delay": "1.8",
+            "moving-min-delay": "0.5",
+            "moving-max-delay": "2.5",
+            "thinking-min-delay": "0.8",
+            "thinking-max-delay": "3.0",
         }
 
         with open(self._config_path, "w") as configfile:
@@ -100,21 +112,50 @@ class ConfigManager:
     @property
     def is_autoplay_enabled(self) -> bool:
         """Check if autoplay is enabled"""
-        # Check both new lowercase and old mixed case for backward compatibility
+        # Check both new hyphenated and old mixed case for backward compatibility
         value = self.get(
-            "general", "autoplay", self.get("general", "AutoPlay", "false")
+            "general", "auto-play", self.get("general", "AutoPlay", "false")
         )
         return value.lower() == "true"
 
     @property
     def move_key(self) -> str:
         """Get the move key"""
-        # Check both new lowercase and old mixed case for backward compatibility
-        return self.get("general", "movekey", self.get("general", "MoveKey", "end"))
+        # Check both new hyphenated and old mixed case for backward compatibility
+        return self.get("general", "move-key", self.get("general", "MoveKey", "end"))
 
     @property
     def show_arrow(self) -> bool:
         """Check if arrow should be shown"""
-        # Check both new lowercase and old mixed case for backward compatibility
+        # Check both new hyphenated and old mixed case for backward compatibility
         value = self.get("general", "arrow", self.get("general", "Arrow", "true"))
         return value.lower() == "true"
+
+    @property
+    def totp_secret(self) -> str:
+        """Get the TOTP secret"""
+        return self.get("lichess", "totp-secret", "")
+
+    @property
+    def humanization_config(self) -> Dict[str, str]:
+        """Get humanization configuration"""
+        return self.get_section("humanization")
+
+    def get_humanization_delay(self, delay_type: str) -> tuple[float, float]:
+        """Get min/max delays for humanization"""
+        config = self.humanization_config
+        if delay_type == "base":
+            min_delay = float(config.get("min-delay", "0.3"))
+            max_delay = float(config.get("max-delay", "1.8"))
+        elif delay_type == "moving":
+            min_delay = float(config.get("moving-min-delay", "0.5"))
+            max_delay = float(config.get("moving-max-delay", "2.5"))
+        elif delay_type == "thinking":
+            min_delay = float(config.get("thinking-min-delay", "0.8"))
+            max_delay = float(config.get("thinking-max-delay", "3.0"))
+        else:
+            # Default to base delays
+            min_delay = float(config.get("min-delay", "0.3"))
+            max_delay = float(config.get("max-delay", "1.8"))
+
+        return min_delay, max_delay

@@ -30,10 +30,10 @@ class ChessEngine:
             self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
             logger.info(f"Started chess engine: {engine_path}")
 
-            # Configure engine options using standardized lowercase keys
+            # Configure engine options using standardized hyphenated keys
             skill_level = int(
                 engine_config.get(
-                    "skilllevel",
+                    "skill-level",
                     engine_config.get(
                         "skill level", engine_config.get("Skill Level", 14)
                     ),
@@ -63,7 +63,7 @@ class ChessEngine:
             raise RuntimeError("Engine not initialized")
 
         if depth is None:
-            # Use standardized lowercase key with backward compatibility
+            # Use standardized hyphenated key with backward compatibility
             depth = int(
                 self.config_manager.get(
                     "engine", "depth", self.config_manager.get("engine", "Depth", 5)

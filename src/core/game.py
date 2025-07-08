@@ -14,7 +14,7 @@ from ..core.browser import BrowserManager
 from ..core.engine import ChessEngine
 from ..input.keyboard_handler import KeyboardHandler
 from ..utils.debug import DebugUtils
-from ..utils.helpers import humanized_delay
+from ..utils.helpers import humanized_delay_from_config
 
 
 class GameManager:
@@ -112,7 +112,7 @@ class GameManager:
         logger.info("Game completed - follow-up element detected")
         self.chess_engine.quit()
         logger.info("Chess engine stopped")
-        print("[INFO] :: Game complete. Waiting for new game to start.")
+        logger.info("Game complete. Waiting for new game to start.")
         self.start_new_game()
 
     def _is_our_turn(self, our_color: str) -> bool:
@@ -141,7 +141,7 @@ class GameManager:
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
         logger.info(f"Our turn - calculating best move (depth: {engine_depth})")
-        humanized_delay(0.3, 1.0, "engine thinking")
+        humanized_delay_from_config(self.config_manager, "thinking", "engine thinking")
 
         result = self.chess_engine.get_best_move(self.board)
         logger.info(f"Engine suggests: {result.move}")
@@ -167,9 +167,11 @@ class GameManager:
             logger.debug("Showing move arrow before auto execution")
             self.board_handler.draw_arrow(move, our_color)
             # Brief delay to show the arrow
-            humanized_delay(0.5, 1.0, "showing arrow")
+            humanized_delay_from_config(self.config_manager, "general", "showing arrow")
 
-        self.board_handler.execute_move(move, move_handle, move_number)
+        self.board_handler.execute_move(
+            move, move_handle, move_number, self.config_manager
+        )
         self.board.push(move)
 
         return move_number + 1
@@ -192,7 +194,9 @@ class GameManager:
         if self.keyboard_handler.should_make_move():
             logger.info(f"Manual key press detected - making move: {move}")
 
-            self.board_handler.execute_move(move, move_handle, move_number)
+            self.board_handler.execute_move(
+                move, move_handle, move_number, self.config_manager
+            )
             self.keyboard_handler.reset_move_state()
             self.board.push(move)
 
@@ -204,8 +208,7 @@ class GameManager:
         else:
             # Just suggesting - show the move and wait
             move_key = self.config_manager.move_key
-            logger.debug(f"Suggesting move: {move} (press {move_key} to execute)")
-            print(f"💡 Suggested move: {move} (press {move_key} to execute)")
+            logger.success(f"💡 Suggested move: {move} (press {move_key} to execute)")
             sleep(0.1)  # Small delay to avoid spam
 
             return move_number

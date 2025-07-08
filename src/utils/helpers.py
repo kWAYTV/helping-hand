@@ -2,7 +2,7 @@
 
 import os
 import platform
-import random
+import secrets
 import time
 from time import sleep
 
@@ -30,10 +30,35 @@ def get_stockfish_path() -> str:
 def humanized_delay(
     min_seconds: float = 0.5, max_seconds: float = 2.0, action: str = "action"
 ) -> None:
-    """Add a humanized delay between actions"""
-    delay = random.uniform(min_seconds, max_seconds)
+    """Add a humanized delay between actions using secure randomization"""
+    # Ensure valid range
+    if min_seconds > max_seconds:
+        min_seconds, max_seconds = max_seconds, min_seconds
+
+    # Use cryptographically secure randomization for better human simulation
+    # Generate a random float between 0 and 1 using secure random bytes
+    random_bytes = secrets.randbits(32)  # 32-bit random number
+    random_float = random_bytes / (2**32)  # Convert to 0.0-1.0 range
+
+    # Apply to our delay range
+    delay = min_seconds + (random_float * (max_seconds - min_seconds))
+
     logger.debug(f"Humanized delay for {action}: {delay:.2f}s")
     sleep(delay)
+
+
+def humanized_delay_from_config(
+    config_manager, delay_type: str = "general", action: str = "action"
+) -> None:
+    """Add a humanized delay using config values"""
+    if delay_type == "moving":
+        min_delay, max_delay = config_manager.get_moving_delay_range()
+    elif delay_type == "thinking":
+        min_delay, max_delay = config_manager.get_thinking_delay_range()
+    else:  # general
+        min_delay, max_delay = config_manager.get_general_delay_range()
+
+    humanized_delay(min_delay, max_delay, action)
 
 
 def clear_screen() -> None:

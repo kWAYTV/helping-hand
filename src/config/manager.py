@@ -51,6 +51,14 @@ class ConfigManager:
             "arrow": "true",
             "autoplay": "true",
         }
+        self.config["humanization"] = {
+            "mindelay": "0.3",
+            "maxdelay": "1.8",
+            "movingmindelay": "0.5",
+            "movingmaxdelay": "2.5",
+            "thinkingmindelay": "0.8",
+            "thinkingmaxdelay": "3.0",
+        }
 
         with open(self._config_path, "w") as configfile:
             self.config.write(configfile)
@@ -118,3 +126,38 @@ class ConfigManager:
         # Check both new lowercase and old mixed case for backward compatibility
         value = self.get("general", "arrow", self.get("general", "Arrow", "true"))
         return value.lower() == "true"
+
+    def _get_delay_value(self, key: str, fallback: float) -> float:
+        """Get delay value with validation"""
+        try:
+            value = float(self.get("humanization", key, fallback))
+            # Clamp between 0.1 and 10.0 seconds for safety
+            return max(0.1, min(10.0, value))
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid delay value for {key}, using fallback: {fallback}")
+            return fallback
+
+    def get_general_delay_range(self) -> tuple[float, float]:
+        """Get general action delay range (min, max)"""
+        min_delay = self._get_delay_value("mindelay", 0.3)
+        max_delay = self._get_delay_value("maxdelay", 1.8)
+        # Ensure min <= max
+        if min_delay > max_delay:
+            min_delay, max_delay = max_delay, min_delay
+        return min_delay, max_delay
+
+    def get_moving_delay_range(self) -> tuple[float, float]:
+        """Get move execution delay range (min, max)"""
+        min_delay = self._get_delay_value("movingmindelay", 0.5)
+        max_delay = self._get_delay_value("movingmaxdelay", 2.5)
+        if min_delay > max_delay:
+            min_delay, max_delay = max_delay, min_delay
+        return min_delay, max_delay
+
+    def get_thinking_delay_range(self) -> tuple[float, float]:
+        """Get engine thinking delay range (min, max)"""
+        min_delay = self._get_delay_value("thinkingmindelay", 0.8)
+        max_delay = self._get_delay_value("thinkingmaxdelay", 3.0)
+        if min_delay > max_delay:
+            min_delay, max_delay = max_delay, min_delay
+        return min_delay, max_delay

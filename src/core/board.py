@@ -14,7 +14,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from ..core.browser import BrowserManager
 from ..utils.debug import DebugUtils
-from ..utils.helpers import humanized_delay
+from ..utils.helpers import humanized_delay_from_config
 
 
 class BoardHandler:
@@ -28,10 +28,24 @@ class BoardHandler:
     def wait_for_game_ready(self) -> bool:
         """Wait for game to be ready and return True if successful"""
         logger.info("Waiting for game setup")
+        follow_up_wait_count = 0
+        game_result_logged = False
 
         # Wait for follow-up to disappear
         while self.browser_manager.check_exists_by_class("follow-up"):
-            logger.debug("Found follow-up element, waiting...")
+            follow_up_wait_count += 1
+
+            # Log game result once when first detected
+            if not game_result_logged:
+                self._log_game_result()
+                game_result_logged = True
+
+            # Reduce spam by logging every 10 seconds instead of every second
+            if follow_up_wait_count % 10 == 0:
+                logger.debug(
+                    f"Still waiting for follow-up to clear... ({follow_up_wait_count}s)"
+                )
+
             sleep(1)
 
         logger.info("No follow-up found, waiting for move input box")
@@ -187,7 +201,6 @@ class BoardHandler:
                 uci = board.push_san(move_text)
                 move_desc = "us" if is_our_move else "opponent"
                 logger.info(f"Move {ceil(move_number / 2)}: {uci.uci()} [{move_desc}]")
-                print(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
                 return True
             else:
                 logger.warning(f"Move '{move_text}' is not legal in current position")
@@ -198,34 +211,41 @@ class BoardHandler:
             self.debug_utils.save_debug_info(self.driver, move_number, board)
             return False
 
-    def execute_move(self, move: chess.Move, move_handle, move_number: int) -> None:
+    def execute_move(
+        self, move: chess.Move, move_handle, move_number: int, config_manager
+    ) -> None:
         """Execute a move through the interface"""
         logger.info(f"Executing move: {move}")
 
         # Humanized delay before making the move
-        humanized_delay(0.5, 1.5, "move execution")
+        humanized_delay_from_config(config_manager, "moving", "move execution")
 
         self.clear_arrow()
 
         logger.info(f"Move {ceil(move_number / 2)}: {move} [us]")
-        print(f"{ceil(move_number / 2)}. {move} [us]")
 
         # Humanized typing delay
-        humanized_delay(0.3, 0.8, "move input")
+        humanized_delay_from_config(config_manager, "general", "move input")
         move_handle.send_keys(Keys.RETURN)
         move_handle.clear()
 
         # Type move with slight delay
-        humanized_delay(0.2, 0.5, "typing move")
+        humanized_delay_from_config(config_manager, "general", "typing move")
         move_handle.send_keys(str(move))
 
     def clear_arrow(self) -> None:
-        """Clear any arrows and highlights on the board"""
+        """Clear any arrows on the board"""
         self.browser_manager.execute_script(
             """
             var g = document.getElementsByTagName("g")[0];
             if (g) {
-                // Remove only our enhanced arrows and highlights
+                // Remove professional arrows
+                var proArrows = g.querySelectorAll('[data-arrow="professional"]');
+                proArrows.forEach(function(element) {
+                    element.remove();
+                });
+                
+                // Remove enhanced arrows (backward compatibility)
                 var enhancedElements = g.querySelectorAll('[data-arrow="enhanced"]');
                 enhancedElements.forEach(function(element) {
                     element.remove();
@@ -247,7 +267,7 @@ class BoardHandler:
         )
 
     def draw_arrow(self, move: chess.Move, our_color: str) -> None:
-        """Draw an enhanced arrow showing the suggested move"""
+        """Draw a professional arrow showing the suggested move"""
         transform = self._get_piece_transform(move, our_color)
 
         move_str = str(move)
@@ -276,71 +296,24 @@ class BoardHandler:
                 document.getElementsByTagName("svg")[0].appendChild(defs);
             }
 
-            // Create enhanced arrowhead with glow effect
-            var arrowId = "enhanced-arrowhead";
+            // Create professional arrowhead
+            var arrowId = "pro-arrowhead";
             var existingArrow = document.getElementById(arrowId);
             if (!existingArrow) {
-                // Create gradient for the arrow
-                var gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                gradient.setAttribute("id", "arrow-gradient");
-                gradient.setAttribute("x1", "0%");
-                gradient.setAttribute("y1", "0%");
-                gradient.setAttribute("x2", "100%");
-                gradient.setAttribute("y2", "0%");
-                
-                var stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop1.setAttribute("offset", "0%");
-                stop1.setAttribute("stop-color", "#00ff88");
-                stop1.setAttribute("stop-opacity", "1");
-                
-                var stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop2.setAttribute("offset", "100%");
-                stop2.setAttribute("stop-color", "#00cc66");
-                stop2.setAttribute("stop-opacity", "1");
-                
-                gradient.appendChild(stop1);
-                gradient.appendChild(stop2);
-                defs.appendChild(gradient);
-
-                // Create glow filter
-                var filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
-                filter.setAttribute("id", "arrow-glow");
-                filter.setAttribute("x", "-50%");
-                filter.setAttribute("y", "-50%");
-                filter.setAttribute("width", "200%");
-                filter.setAttribute("height", "200%");
-                
-                var feGaussianBlur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
-                feGaussianBlur.setAttribute("stdDeviation", "3");
-                feGaussianBlur.setAttribute("result", "coloredBlur");
-                
-                var feMerge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
-                var feMergeNode1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-                feMergeNode1.setAttribute("in", "coloredBlur");
-                var feMergeNode2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-                feMergeNode2.setAttribute("in", "SourceGraphic");
-                
-                feMerge.appendChild(feMergeNode1);
-                feMerge.appendChild(feMergeNode2);
-                filter.appendChild(feGaussianBlur);
-                filter.appendChild(feMerge);
-                defs.appendChild(filter);
-
-                // Create enhanced arrowhead
                 var marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
                 marker.setAttribute("id", arrowId);
                 marker.setAttribute("orient", "auto");
-                marker.setAttribute("markerWidth", "8");
-                marker.setAttribute("markerHeight", "10");
-                marker.setAttribute("refX", "7");
-                marker.setAttribute("refY", "3");
+                marker.setAttribute("markerWidth", "6");
+                marker.setAttribute("markerHeight", "8");
+                marker.setAttribute("refX", "5");
+                marker.setAttribute("refY", "4");
+                marker.setAttribute("markerUnits", "strokeWidth");
                 
                 var arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                arrowPath.setAttribute("d", "M0,0 L0,6 L7,3 z");
-                arrowPath.setAttribute("fill", "url(#arrow-gradient)");
-                arrowPath.setAttribute("stroke", "#00ff88");
+                arrowPath.setAttribute("d", "M0,0 L0,8 L6,4 z");
+                arrowPath.setAttribute("fill", "#2E7D32");
+                arrowPath.setAttribute("stroke", "#1B5E20");
                 arrowPath.setAttribute("stroke-width", "0.5");
-                arrowPath.setAttribute("filter", "url(#arrow-glow)");
                 
                 marker.appendChild(arrowPath);
                 defs.appendChild(marker);
@@ -348,70 +321,26 @@ class BoardHandler:
 
             // Clear previous arrows
             var g = document.getElementsByTagName("g")[0];
-            var existingArrows = g.querySelectorAll('[data-arrow="enhanced"]');
+            var existingArrows = g.querySelectorAll('[data-arrow="professional"]');
             existingArrows.forEach(function(arrow) {
                 arrow.remove();
             });
 
-            // Create enhanced arrow line with animation
+            // Create professional arrow line
             var arrowLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            arrowLine.setAttribute("stroke", "url(#arrow-gradient)");
-            arrowLine.setAttribute("stroke-width", "4");
+            arrowLine.setAttribute("stroke", "#2E7D32");
+            arrowLine.setAttribute("stroke-width", "3");
             arrowLine.setAttribute("stroke-linecap", "round");
             arrowLine.setAttribute("marker-end", "url(#" + arrowId + ")");
-            arrowLine.setAttribute("opacity", "0");
+            arrowLine.setAttribute("opacity", "0.9");
             arrowLine.setAttribute("x1", x1);
             arrowLine.setAttribute("y1", y1);
             arrowLine.setAttribute("x2", x2);
             arrowLine.setAttribute("y2", y2);
-            arrowLine.setAttribute("filter", "url(#arrow-glow)");
-            arrowLine.setAttribute("data-arrow", "enhanced");
-            arrowLine.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,enhanced`);
-
-            // Add pulsing animation
-            var animate = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-            animate.setAttribute("attributeName", "opacity");
-            animate.setAttribute("values", "0;1;0.7;1");
-            animate.setAttribute("dur", "1.5s");
-            animate.setAttribute("repeatCount", "indefinite");
-            arrowLine.appendChild(animate);
-
-            // Add stroke-width animation for pulse effect
-            var animateWidth = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-            animateWidth.setAttribute("attributeName", "stroke-width");
-            animateWidth.setAttribute("values", "4;6;4");
-            animateWidth.setAttribute("dur", "2s");
-            animateWidth.setAttribute("repeatCount", "indefinite");
-            arrowLine.appendChild(animateWidth);
+            arrowLine.setAttribute("data-arrow", "professional");
+            arrowLine.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,professional`);
 
             g.appendChild(arrowLine);
-
-            // Add subtle move highlight on source and destination squares
-            function addSquareHighlight(square, color, opacity) {
-                var existingHighlight = document.querySelector(`[data-highlight="${square}"]`);
-                if (existingHighlight) existingHighlight.remove();
-                
-                var highlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                highlight.setAttribute("cx", square === src ? x1 : x2);
-                highlight.setAttribute("cy", square === src ? y1 : y2);
-                highlight.setAttribute("r", "0.4");
-                highlight.setAttribute("fill", color);
-                highlight.setAttribute("opacity", opacity);
-                highlight.setAttribute("data-highlight", square);
-                highlight.setAttribute("data-arrow", "enhanced");
-                
-                var pulseAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-                pulseAnim.setAttribute("attributeName", "r");
-                pulseAnim.setAttribute("values", "0.3;0.5;0.3");
-                pulseAnim.setAttribute("dur", "2s");
-                pulseAnim.setAttribute("repeatCount", "indefinite");
-                highlight.appendChild(pulseAnim);
-                
-                g.appendChild(highlight);
-            }
-            
-            addSquareHighlight(src, "#ffaa00", "0.6");  // Orange for source
-            addSquareHighlight(dst, "#00ff88", "0.8");  // Green for destination
             """,
             transform[0],
             transform[1],
@@ -505,3 +434,26 @@ class BoardHandler:
     def is_game_over(self) -> bool:
         """Check if game is over (follow-up element exists)"""
         return bool(self.browser_manager.check_exists_by_class("follow-up"))
+
+    def _log_game_result(self) -> None:
+        """Log the game result when game ends"""
+        try:
+            # Get score using driver directly
+            score_element = self.driver.find_element(
+                By.XPATH, "/html/body/div[2]/main/div[1]/rm6/l4x/div/p[1]"
+            )
+            score = score_element.text if score_element else "Score not found"
+
+            # Get result reason using driver directly
+            result_element = self.driver.find_element(
+                By.XPATH, "/html/body/div[2]/main/div[1]/rm6/l4x/div/p[2]"
+            )
+            result = result_element.text if result_element else "Result not found"
+
+            logger.success(f"🏁 GAME FINISHED - {score} | {result}")
+            logger.success(f"📊 Final Score: {score}")
+            logger.success(f"🎯 Game Result: {result}")
+
+        except Exception as e:
+            logger.debug(f"Could not extract game result: {e}")
+            logger.info("🏁 GAME FINISHED - Result details not available")

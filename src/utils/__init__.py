@@ -6,6 +6,7 @@ from .helpers import (
     get_geckodriver_path,
     get_stockfish_path,
     humanized_delay,
+    humanized_delay_from_config,
 )
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "get_geckodriver_path",
     "get_stockfish_path",
     "humanized_delay",
+    "humanized_delay_from_config",
     "clear_screen",
 ]

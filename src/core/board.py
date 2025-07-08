@@ -3,7 +3,7 @@
 import re
 from math import ceil
 from time import sleep
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import chess
 from loguru import logger

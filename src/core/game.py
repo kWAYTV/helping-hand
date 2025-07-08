@@ -1,8 +1,6 @@
 """Game Manager - Main game flow and logic orchestration"""
 
-from math import ceil
 from time import sleep
-from typing import Optional
 
 import chess
 from loguru import logger
@@ -14,7 +12,7 @@ from ..core.browser import BrowserManager
 from ..core.engine import ChessEngine
 from ..input.keyboard_handler import KeyboardHandler
 from ..utils.debug import DebugUtils
-from ..utils.helpers import advanced_humanized_delay, humanized_delay
+from ..utils.helpers import advanced_humanized_delay
 
 
 class GameManager:

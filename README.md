@@ -41,6 +41,13 @@
    - Download from [GitHub releases](https://github.com/mozilla/geckodriver/releases)
    - Place in `deps/geckodriver/` (auto-detected by OS)
 
+   **xPath Finder Extension:**
+
+   - Visit [xPath Finder addon page](https://addons.mozilla.org/en-US/firefox/addon/xpath_finder/)
+   - Click "Download file" button (not "Add to Firefox")
+   - Save the `.xpi` file to `deps/` folder
+   - Rename the file to `xpath_finder.xpi` for the bot to find it
+
 3. **Configure the bot**
 
    ```bash
@@ -104,27 +111,6 @@ Control the amount of output shown during bot operation:
 | `thinking-min-delay` / `thinking-max-delay` | Engine thinking delays | 0.8-3.0s |
 
 > **Note:** The bot automatically adds 0-1s jitter and micro-variations to all delays for natural behavior.
-
-## 🔐 Two-Factor Authentication
-
-For accounts with 2FA enabled:
-
-1. **Obtain your TOTP secret**
-
-   - Open your authenticator app
-   - Reveal the secret key (base32 encoded string)
-
-2. **Add to configuration**
-
-   ```ini
-   [lichess]
-   totp-secret = YOUR_BASE32_SECRET_HERE
-   ```
-
-3. **Automatic handling**
-   - Bot detects 2FA prompts automatically
-   - Generates and inputs TOTP codes
-   - Falls back to manual input if no secret provided
 
 ## 🎮 Operation Modes
 

@@ -27,6 +27,24 @@ def get_stockfish_path() -> str:
         return os.path.join("deps", "stockfish", "stockfish")
 
 
+def get_xpath_finder_path() -> str:
+    """Get the xpath_finder extension path"""
+    return os.path.join("deps", "xpath_finder.xpi")
+
+
+def install_firefox_extensions(driver):
+    """Install Firefox extensions after browser startup"""
+    from loguru import logger
+
+    extension_path = get_xpath_finder_path()
+    if os.path.exists(extension_path):
+        try:
+            driver.install_addon(extension_path)
+            logger.debug(f"Successfully installed extension: {extension_path}")
+        except Exception as e:
+            logger.warning(f"Failed to install extension {extension_path}: {e}")
+
+
 def humanized_delay(
     min_seconds: float = 0.5,
     max_seconds: float = 2.0,

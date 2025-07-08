@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
-from ..utils.helpers import get_geckodriver_path
+from ..utils.helpers import get_geckodriver_path, install_firefox_extensions
 
 
 class BrowserManager:
@@ -45,6 +45,10 @@ class BrowserManager:
             self.driver = webdriver.Firefox(
                 service=firefox_service, options=webdriver_options
             )
+
+            # Install Firefox extensions
+            install_firefox_extensions(self.driver)
+
             logger.debug("Firefox WebDriver initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")

@@ -1,98 +1,154 @@
-"""Configuration Manager - Singleton pattern for config handling"""
+"""Configuration Manager - Centralized config handling with singleton pattern"""
 
 import configparser
 import os
-from typing import Any, Dict, Optional
-
-from loguru import logger
-
-from ..utils.helpers import get_stockfish_path
+from typing import Any, Dict
 
 
 class ConfigManager:
     """Singleton configuration manager for the chess bot"""
 
-    _instance: Optional["ConfigManager"] = None
-    _initialized: bool = False
+    _instance = None
+    _initialized = False
 
-    def __new__(cls) -> "ConfigManager":
+    def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            cls._instance = super(ConfigManager, cls).__new__(cls)
         return cls._instance
 
     def __init__(self):
         if not self._initialized:
             self.config = configparser.ConfigParser()
-            self._config_path = "config.ini"
-            self._load_or_create_config()
+            self.config_file = "config.ini"
+
+            # Default configuration with hyphenated keys
+            self.defaults = {
+                "engine": {
+                    "path": "deps/stockfish/stockfish.exe",
+                    "depth": "5",
+                    "hash": "2048",
+                    "skill-level": "14",
+                },
+                "lichess": {
+                    "username": "",
+                    "password": "",
+                    "totp-secret": "",
+                },
+                "general": {
+                    "move-key": "end",
+                    "arrow": "true",
+                    "auto-play": "true",
+                },
+                "humanization": {
+                    "min-delay": "0.3",
+                    "max-delay": "1.8",
+                    "moving-min-delay": "0.5",
+                    "moving-max-delay": "2.5",
+                    "thinking-min-delay": "0.8",
+                    "thinking-max-delay": "3.0",
+                },
+            }
+
+            self._load_config()
             ConfigManager._initialized = True
 
-    def _load_or_create_config(self) -> None:
-        """Load existing config or create default one"""
-        if os.path.isfile(self._config_path):
-            self.config.read(self._config_path)
-            logger.info("Loaded existing config.ini")
+    def _load_config(self) -> None:
+        """Load configuration from file"""
+        if os.path.exists(self.config_file):
+            self.config.read(self.config_file)
         else:
-            logger.info("No config.ini found, creating default config")
+            # Create default config if it doesn't exist
             self._create_default_config()
-            self.config.read(self._config_path)
 
     def _create_default_config(self) -> None:
-        """Create default configuration file"""
-        self.config["engine"] = {
-            "path": get_stockfish_path(),
-            "depth": "5",
-            "hash": "2048",
-            "skilllevel": "14",
-        }
-        self.config["lichess"] = {
-            "username": "user",
-            "password": "pass",
-            "totpsecret": "",
-        }
-        self.config["general"] = {
-            "movekey": "end",
-            "arrow": "true",
-            "autoplay": "true",
-        }
-        self.config["humanization"] = {
-            "mindelay": "0.3",
-            "maxdelay": "1.8",
-            "movingmindelay": "0.5",
-            "movingmaxdelay": "2.5",
-            "thinkingmindelay": "0.8",
-            "thinkingmaxdelay": "3.0",
-        }
+        """Create a default configuration file"""
+        for section, options in self.defaults.items():
+            self.config.add_section(section)
+            for key, value in options.items():
+                self.config.set(section, key, value)
 
-        with open(self._config_path, "w") as configfile:
-            self.config.write(configfile)
+        with open(self.config_file, "w") as f:
+            self.config.write(f)
 
-    def get(self, section: str, key: str, fallback: Any = None) -> Any:
-        """Get configuration value with fallback"""
+    def get(self, section: str, key: str, fallback: Any = None) -> str:
+        """Get a configuration value"""
+        if self.config.has_option(section, key):
+            return self.config.get(section, key, fallback=fallback)
+
+        # Use defaults if available
+        if section in self.defaults and key in self.defaults[section]:
+            return self.defaults[section][key]
+
+        return fallback
+
+    @property
+    def is_autoplay_enabled(self) -> bool:
+        """Check if autoplay is enabled"""
+        return self.get("general", "auto-play", "false").lower() == "true"
+
+    @property
+    def move_key(self) -> str:
+        """Get the move key"""
+        return self.get("general", "move-key", "end")
+
+    @property
+    def show_arrow(self) -> bool:
+        """Check if arrow display is enabled"""
+        return self.get("general", "arrow", "true").lower() == "true"
+
+    def get_skill_level(self) -> int:
+        """Get engine skill level"""
+        return int(self.get("engine", "skill-level", "14"))
+
+    def get_totp_secret(self) -> str:
+        """Get TOTP secret"""
+        return self.get("lichess", "totp-secret", "").strip()
+
+    def get_general_delays(self) -> tuple[float, float]:
+        """Get general action delays"""
+        min_delay = self._get_delay_value("min-delay", 0.3)
+        max_delay = self._get_delay_value("max-delay", 1.8)
+        return min_delay, max_delay
+
+    def get_moving_delays(self) -> tuple[float, float]:
+        """Get move execution delays"""
+        min_delay = self._get_delay_value("moving-min-delay", 0.5)
+        max_delay = self._get_delay_value("moving-max-delay", 2.5)
+        return min_delay, max_delay
+
+    def get_thinking_delays(self) -> tuple[float, float]:
+        """Get engine thinking delays"""
+        min_delay = self._get_delay_value("thinking-min-delay", 0.8)
+        max_delay = self._get_delay_value("thinking-max-delay", 3.0)
+        return min_delay, max_delay
+
+    def _get_delay_value(self, key: str, default: float) -> float:
+        """Get delay value with validation"""
+        value = self.get("humanization", key, str(default))
+
         try:
-            return self.config[section].get(key, fallback)
-        except KeyError:
-            logger.warning(f"Section '{section}' not found in config")
-            return fallback
+            delay = float(value)
+            # Validate range
+            return max(0.1, min(10.0, delay))
+        except (ValueError, TypeError):
+            return default
 
     def get_section(self, section: str) -> Dict[str, str]:
         """Get entire configuration section"""
-        try:
+        if self.config.has_section(section):
             return dict(self.config[section])
-        except KeyError:
-            logger.warning(f"Section '{section}' not found in config")
-            return {}
+        return {}
 
     def set(self, section: str, key: str, value: str) -> None:
         """Set configuration value"""
-        if section not in self.config:
-            self.config[section] = {}
-        self.config[section][key] = value
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, key, value)
 
     def save(self) -> None:
         """Save configuration to file"""
-        with open(self._config_path, "w") as configfile:
-            self.config.write(configfile)
+        with open(self.config_file, "w") as f:
+            self.config.write(f)
 
     @property
     def engine_config(self) -> Dict[str, str]:
@@ -108,60 +164,3 @@ class ConfigManager:
     def general_config(self) -> Dict[str, str]:
         """Get general configuration"""
         return self.get_section("general")
-
-    @property
-    def is_autoplay_enabled(self) -> bool:
-        """Check if autoplay is enabled"""
-        # Check both new lowercase and old mixed case for backward compatibility
-        value = self.get(
-            "general", "autoplay", self.get("general", "AutoPlay", "false")
-        )
-        return value.lower() == "true"
-
-    @property
-    def move_key(self) -> str:
-        """Get the move key"""
-        # Check both new lowercase and old mixed case for backward compatibility
-        return self.get("general", "movekey", self.get("general", "MoveKey", "end"))
-
-    @property
-    def show_arrow(self) -> bool:
-        """Check if arrow should be shown"""
-        # Check both new lowercase and old mixed case for backward compatibility
-        value = self.get("general", "arrow", self.get("general", "Arrow", "true"))
-        return value.lower() == "true"
-
-    def _get_delay_value(self, key: str, fallback: float) -> float:
-        """Get delay value with validation"""
-        try:
-            value = float(self.get("humanization", key, fallback))
-            # Clamp between 0.1 and 10.0 seconds for safety
-            return max(0.1, min(10.0, value))
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid delay value for {key}, using fallback: {fallback}")
-            return fallback
-
-    def get_general_delay_range(self) -> tuple[float, float]:
-        """Get general action delay range (min, max)"""
-        min_delay = self._get_delay_value("mindelay", 0.3)
-        max_delay = self._get_delay_value("maxdelay", 1.8)
-        # Ensure min <= max
-        if min_delay > max_delay:
-            min_delay, max_delay = max_delay, min_delay
-        return min_delay, max_delay
-
-    def get_moving_delay_range(self) -> tuple[float, float]:
-        """Get move execution delay range (min, max)"""
-        min_delay = self._get_delay_value("movingmindelay", 0.5)
-        max_delay = self._get_delay_value("movingmaxdelay", 2.5)
-        if min_delay > max_delay:
-            min_delay, max_delay = max_delay, min_delay
-        return min_delay, max_delay
-
-    def get_thinking_delay_range(self) -> tuple[float, float]:
-        """Get engine thinking delay range (min, max)"""
-        min_delay = self._get_delay_value("thinkingmindelay", 0.8)
-        max_delay = self._get_delay_value("thinkingmaxdelay", 3.0)
-        if min_delay > max_delay:
-            min_delay, max_delay = max_delay, min_delay
-        return min_delay, max_delay

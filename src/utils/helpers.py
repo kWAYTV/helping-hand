@@ -52,11 +52,11 @@ def humanized_delay_from_config(
 ) -> None:
     """Add a humanized delay using config values"""
     if delay_type == "moving":
-        min_delay, max_delay = config_manager.get_moving_delay_range()
+        min_delay, max_delay = config_manager.get_moving_delays()
     elif delay_type == "thinking":
-        min_delay, max_delay = config_manager.get_thinking_delay_range()
+        min_delay, max_delay = config_manager.get_thinking_delays()
     else:  # general
-        min_delay, max_delay = config_manager.get_general_delay_range()
+        min_delay, max_delay = config_manager.get_general_delays()
 
     humanized_delay(min_delay, max_delay, action)
 

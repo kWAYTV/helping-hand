@@ -237,34 +237,18 @@ class BoardHandler:
         move_handle.send_keys(str(move))
 
     def clear_arrow(self) -> None:
-        """Clear any arrows and highlights on the board"""
+        """Clear any arrows on the board"""
         self.browser_manager.execute_script(
             """
             var g = document.getElementsByTagName("g")[0];
             if (g) {
-                // Remove only our enhanced arrows and highlights
-                var enhancedElements = g.querySelectorAll('[data-arrow="enhanced"]');
-                enhancedElements.forEach(function(element) {
-                    element.remove();
-                });
-                
-                // Also clear any legacy arrows (backward compatibility)
-                var legacyArrows = g.querySelectorAll('line[cgHash*="green"]');
-                legacyArrows.forEach(function(arrow) {
-                    arrow.remove();
-                });
-                
-                // Clear any highlight circles
-                var highlights = g.querySelectorAll('[data-highlight]');
-                highlights.forEach(function(highlight) {
-                    highlight.remove();
-                });
+                g.textContent = "";
             }
             """
         )
 
     def draw_arrow(self, move: chess.Move, our_color: str) -> None:
-        """Draw an enhanced arrow showing the suggested move"""
+        """Draw an arrow showing the suggested move"""
         transform = self._get_piece_transform(move, our_color)
 
         move_str = str(move)
@@ -286,149 +270,39 @@ class BoardHandler:
             var src = arguments[5];
             var dst = arguments[6];
 
-            // Get or create the defs element
-            var defs = document.getElementsByTagName("defs")[0];
-            if (!defs) {
-                defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-                document.getElementsByTagName("svg")[0].appendChild(defs);
+            defs = document.getElementsByTagName("defs")[0];
+            child_defs = document.getElementsByTagName("marker")[0];
+
+            if (child_defs == null) {
+                child_defs = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+                child_defs.setAttribute("id", "arrowhead-g");
+                child_defs.setAttribute("orient", "auto");
+                child_defs.setAttribute("markerWidth", "4");
+                child_defs.setAttribute("markerHeight", "8");
+                child_defs.setAttribute("refX", "2.05");
+                child_defs.setAttribute("refY", "2.01");
+                child_defs.setAttribute("cgKey", "g");
+                
+                path = document.createElement('path')
+                path.setAttribute("d", "M0,0 V4 L3,2 Z");
+                path.setAttribute("fill", "#15781B");
+                child_defs.appendChild(path);
+                defs.appendChild(child_defs);
             }
 
-            // Create enhanced arrowhead with glow effect
-            var arrowId = "enhanced-arrowhead";
-            var existingArrow = document.getElementById(arrowId);
-            if (!existingArrow) {
-                // Create gradient for the arrow
-                var gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                gradient.setAttribute("id", "arrow-gradient");
-                gradient.setAttribute("x1", "0%");
-                gradient.setAttribute("y1", "0%");
-                gradient.setAttribute("x2", "100%");
-                gradient.setAttribute("y2", "0%");
-                
-                var stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop1.setAttribute("offset", "0%");
-                stop1.setAttribute("stop-color", "#00ff88");
-                stop1.setAttribute("stop-opacity", "1");
-                
-                var stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                stop2.setAttribute("offset", "100%");
-                stop2.setAttribute("stop-color", "#00cc66");
-                stop2.setAttribute("stop-opacity", "1");
-                
-                gradient.appendChild(stop1);
-                gradient.appendChild(stop2);
-                defs.appendChild(gradient);
-
-                // Create glow filter
-                var filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
-                filter.setAttribute("id", "arrow-glow");
-                filter.setAttribute("x", "-50%");
-                filter.setAttribute("y", "-50%");
-                filter.setAttribute("width", "200%");
-                filter.setAttribute("height", "200%");
-                
-                var feGaussianBlur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
-                feGaussianBlur.setAttribute("stdDeviation", "3");
-                feGaussianBlur.setAttribute("result", "coloredBlur");
-                
-                var feMerge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
-                var feMergeNode1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-                feMergeNode1.setAttribute("in", "coloredBlur");
-                var feMergeNode2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-                feMergeNode2.setAttribute("in", "SourceGraphic");
-                
-                feMerge.appendChild(feMergeNode1);
-                feMerge.appendChild(feMergeNode2);
-                filter.appendChild(feGaussianBlur);
-                filter.appendChild(feMerge);
-                defs.appendChild(filter);
-
-                // Create enhanced arrowhead
-                var marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
-                marker.setAttribute("id", arrowId);
-                marker.setAttribute("orient", "auto");
-                marker.setAttribute("markerWidth", "8");
-                marker.setAttribute("markerHeight", "10");
-                marker.setAttribute("refX", "7");
-                marker.setAttribute("refY", "3");
-                
-                var arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                arrowPath.setAttribute("d", "M0,0 L0,6 L7,3 z");
-                arrowPath.setAttribute("fill", "url(#arrow-gradient)");
-                arrowPath.setAttribute("stroke", "#00ff88");
-                arrowPath.setAttribute("stroke-width", "0.5");
-                arrowPath.setAttribute("filter", "url(#arrow-glow)");
-                
-                marker.appendChild(arrowPath);
-                defs.appendChild(marker);
-            }
-
-            // Clear previous arrows
-            var g = document.getElementsByTagName("g")[0];
-            var existingArrows = g.querySelectorAll('[data-arrow="enhanced"]');
-            existingArrows.forEach(function(arrow) {
-                arrow.remove();
-            });
-
-            // Create enhanced arrow line with animation
-            var arrowLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            arrowLine.setAttribute("stroke", "url(#arrow-gradient)");
-            arrowLine.setAttribute("stroke-width", "4");
-            arrowLine.setAttribute("stroke-linecap", "round");
-            arrowLine.setAttribute("marker-end", "url(#" + arrowId + ")");
-            arrowLine.setAttribute("opacity", "0");
-            arrowLine.setAttribute("x1", x1);
-            arrowLine.setAttribute("y1", y1);
-            arrowLine.setAttribute("x2", x2);
-            arrowLine.setAttribute("y2", y2);
-            arrowLine.setAttribute("filter", "url(#arrow-glow)");
-            arrowLine.setAttribute("data-arrow", "enhanced");
-            arrowLine.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,enhanced`);
-
-            // Add pulsing animation
-            var animate = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-            animate.setAttribute("attributeName", "opacity");
-            animate.setAttribute("values", "0;1;0.7;1");
-            animate.setAttribute("dur", "1.5s");
-            animate.setAttribute("repeatCount", "indefinite");
-            arrowLine.appendChild(animate);
-
-            // Add stroke-width animation for pulse effect
-            var animateWidth = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-            animateWidth.setAttribute("attributeName", "stroke-width");
-            animateWidth.setAttribute("values", "4;6;4");
-            animateWidth.setAttribute("dur", "2s");
-            animateWidth.setAttribute("repeatCount", "indefinite");
-            arrowLine.appendChild(animateWidth);
-
-            g.appendChild(arrowLine);
-
-            // Add subtle move highlight on source and destination squares
-            function addSquareHighlight(square, color, opacity) {
-                var existingHighlight = document.querySelector(`[data-highlight="${square}"]`);
-                if (existingHighlight) existingHighlight.remove();
-                
-                var highlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                highlight.setAttribute("cx", square === src ? x1 : x2);
-                highlight.setAttribute("cy", square === src ? y1 : y2);
-                highlight.setAttribute("r", "0.4");
-                highlight.setAttribute("fill", color);
-                highlight.setAttribute("opacity", opacity);
-                highlight.setAttribute("data-highlight", square);
-                highlight.setAttribute("data-arrow", "enhanced");
-                
-                var pulseAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-                pulseAnim.setAttribute("attributeName", "r");
-                pulseAnim.setAttribute("values", "0.3;0.5;0.3");
-                pulseAnim.setAttribute("dur", "2s");
-                pulseAnim.setAttribute("repeatCount", "indefinite");
-                highlight.appendChild(pulseAnim);
-                
-                g.appendChild(highlight);
-            }
-            
-            addSquareHighlight(src, "#ffaa00", "0.6");  // Orange for source
-            addSquareHighlight(dst, "#00ff88", "0.8");  // Green for destination
+            g = document.getElementsByTagName("g")[0];
+            var child_g = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            child_g.setAttribute("stroke","#15781B");
+            child_g.setAttribute("stroke-width","0.15625");
+            child_g.setAttribute("stroke-linecap","round");
+            child_g.setAttribute("marker-end","url(#arrowhead-g)");
+            child_g.setAttribute("opacity","1");
+            child_g.setAttribute("x1", x1);
+            child_g.setAttribute("y1", y1);
+            child_g.setAttribute("x2", x2);
+            child_g.setAttribute("y2", y2);
+            child_g.setAttribute("cgHash", `${size}, ${size},` + src + `,` + dst + `,green`);
+            g.appendChild(child_g);
             """,
             transform[0],
             transform[1],

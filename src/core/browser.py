@@ -93,29 +93,71 @@ class BrowserManager:
         if not self.driver:
             return
 
-        # Hide username after login
-        self._hide_element_by_xpath('//*[@id="user_tag"]')
+        # Hide username after login (header)
+        self._hide_element_by_selector("#user_tag")
+        self._hide_element_by_selector(".site-title .user")
+        self._hide_element_by_selector('[data-icon="H"]')
 
-        # Hide username in game page
-        self._hide_element_by_xpath("/html/body/div[2]/main/div[1]/div[6]/a")
+        # Hide player names in game interface
+        self._hide_elements_by_selectors(
+            [
+                ".ruser a",  # Player links
+                ".ruser .user-link",  # User links
+                ".player a",  # Player names
+                ".game__meta .player",  # Game meta player info
+                ".game__meta .user-link",  # User links in game meta
+                ".rclock-run .ruser",  # Clock usernames
+                ".rclock .user-link",  # Clock user links
+                'a[href*="/player/"]',  # Any player profile links
+                '.game__meta a[href*="/@"]',  # Profile links with @ symbol
+                ".ruser-top a",  # Top player area
+                ".ruser-bottom a",  # Bottom player area
+            ]
+        )
+
+        # Hide chat usernames if present
+        self._hide_elements_by_selectors(
+            [
+                ".mchat .user-link",
+                ".mchat .username",
+                ".chat .user-link",
+                ".chat .username",
+            ]
+        )
+
+        # Hide spectator/follower info
+        self._hide_elements_by_selectors(
+            [
+                ".watchers .user-link",
+                ".followers .user-link",
+                ".spectators .user-link",
+            ]
+        )
 
         logger.debug("Username elements hidden for privacy")
 
-    def _hide_element_by_xpath(self, xpath: str) -> None:
-        """Hide element by XPath using JavaScript"""
+    def _hide_element_by_selector(self, selector: str) -> None:
+        """Hide element by CSS selector using JavaScript"""
         script = f"""
         try {{
-            var element = document.evaluate('{xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-            if (element) {{
-                element.style.visibility = 'hidden';
-                element.style.opacity = '0';
-                console.log('Hidden element at xpath: {xpath}');
-            }}
+            var elements = document.querySelectorAll('{selector}');
+            elements.forEach(function(element) {{
+                if (element) {{
+                    element.style.visibility = 'hidden';
+                    element.style.opacity = '0';
+                    console.log('Hidden element with selector: {selector}');
+                }}
+            }});
         }} catch (e) {{
-            console.log('Could not hide element at xpath: {xpath}', e);
+            console.log('Could not hide element with selector: {selector}', e);
         }}
         """
         self.execute_script(script)
+
+    def _hide_elements_by_selectors(self, selectors: list) -> None:
+        """Hide elements by multiple CSS selectors"""
+        for selector in selectors:
+            self._hide_element_by_selector(selector)
 
     def save_screenshot(self, filename: str) -> None:
         """Save a screenshot"""

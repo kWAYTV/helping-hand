@@ -134,6 +134,9 @@ class BrowserManager:
             ]
         )
 
+        # Hide additional username elements that appear in different game modes
+        self._hide_element_by_xpath("/html/body/div[2]/main/div[2]/div/div[1]/a[1]")
+
         logger.debug("Username elements hidden for privacy")
 
     def _hide_element_by_selector(self, selector: str) -> None:
@@ -150,6 +153,25 @@ class BrowserManager:
             }});
         }} catch (e) {{
             console.log('Could not hide element with selector: {selector}', e);
+        }}
+        """
+        self.execute_script(script)
+
+    def _hide_element_by_xpath(self, xpath: str) -> None:
+        """Hide element by XPath using JavaScript"""
+        script = f"""
+        try {{
+            var result = document.evaluate('{xpath}', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+            for (var i = 0; i < result.snapshotLength; i++) {{
+                var element = result.snapshotItem(i);
+                if (element) {{
+                    element.style.visibility = 'hidden';
+                    element.style.opacity = '0';
+                    console.log('Hidden element with xpath: {xpath}');
+                }}
+            }}
+        }} catch (e) {{
+            console.log('Could not hide element with xpath: {xpath}', e);
         }}
         """
         self.execute_script(script)

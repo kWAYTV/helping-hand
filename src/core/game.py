@@ -115,6 +115,16 @@ class GameManager:
                 logger.info(
                     "Starting fresh game as Black - waiting for White's first move"
                 )
+        else:
+            # Joined game in progress - check if it's immediately our turn
+            if self._is_our_turn(our_color):
+                logger.info(
+                    f"Joined game in progress - it's our turn to play move {move_number}"
+                )
+            else:
+                logger.info(
+                    f"Joined game in progress - waiting for opponent's move {move_number}"
+                )
 
         # Main game loop
         while not self.board_handler.is_game_over():

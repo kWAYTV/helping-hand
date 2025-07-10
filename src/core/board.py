@@ -40,23 +40,47 @@ class BoardHandler:
             logger.debug("Found follow-up element, waiting for user action...")
             sleep(1)
 
-        logger.debug("No follow-up found, waiting for user's first move")
+        logger.debug("No follow-up found, waiting for game interface")
 
         try:
-            # Wait for move input box
-            WebDriverWait(self.driver, 600).until(
-                ec.presence_of_element_located(
-                    (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input")
-                )
-            )
-            logger.debug("Move input box found")
-
-            # Wait for board
-            WebDriverWait(self.driver, 600).until(
+            # Wait for board first (this appears quickly)
+            WebDriverWait(self.driver, 30).until(
                 ec.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
             )
             logger.debug("Board found")
 
+            # Try multiple selectors for move input box (more flexible)
+            move_input_selectors = [
+                (By.CLASS_NAME, "ready"),  # Most common selector
+                (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input"),  # Original
+                (By.CSS_SELECTOR, "input[placeholder*='move']"),  # CSS alternative
+                (By.CSS_SELECTOR, ".move-input"),  # Class alternative
+                (By.TAG_NAME, "input"),  # Last resort - any input
+            ]
+
+            move_input_found = False
+            for selector_type, selector_value in move_input_selectors:
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        ec.presence_of_element_located((selector_type, selector_value))
+                    )
+                    logger.debug(
+                        f"Move input found using {selector_type}: {selector_value}"
+                    )
+                    move_input_found = True
+                    break
+                except:
+                    continue
+
+            if not move_input_found:
+                # Try a longer wait for the most reliable selector
+                logger.debug("Trying longer wait for move input...")
+                WebDriverWait(self.driver, 30).until(
+                    ec.presence_of_element_located((By.CLASS_NAME, "ready"))
+                )
+                logger.debug("Move input found after extended wait")
+
+            logger.debug("Game interface ready")
             return True
 
         except Exception as e:
@@ -78,14 +102,46 @@ class BoardHandler:
 
     def get_move_input_handle(self):
         """Get the move input element"""
+        # Try multiple selectors for better reliability
+        move_input_selectors = [
+            (By.CLASS_NAME, "ready"),  # Most common selector
+            (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input"),  # Original
+            (By.CSS_SELECTOR, "input[placeholder*='move']"),  # CSS alternative
+            (By.CSS_SELECTOR, ".move-input"),  # Class alternative
+        ]
+
+        for selector_type, selector_value in move_input_selectors:
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    ec.presence_of_element_located((selector_type, selector_value))
+                )
+                element = self.driver.find_element(selector_type, selector_value)
+                logger.debug(
+                    f"Move input handle found using {selector_type}: {selector_value}"
+                )
+                return element
+            except Exception:
+                continue
+
+        # If all specific selectors fail, try the fallback
         try:
-            WebDriverWait(self.driver, 600).until(
-                ec.presence_of_element_located((By.CLASS_NAME, "ready"))
+            WebDriverWait(self.driver, 5).until(
+                ec.presence_of_element_located((By.TAG_NAME, "input"))
             )
-            return self.driver.find_element(By.CLASS_NAME, "ready")
+            elements = self.driver.find_elements(By.TAG_NAME, "input")
+            # Return the first visible input element
+            for element in elements:
+                if element.is_displayed():
+                    logger.debug(
+                        "Move input handle found using fallback input selector"
+                    )
+                    return element
         except Exception as e:
             logger.error(f"Failed to find move input handle: {e}")
             return None
+
+        logger.error("Could not find move input handle with any selector")
+        return None
 
     def find_move_by_alternatives(self, move_number: int):
         """Try alternative selectors to find moves"""

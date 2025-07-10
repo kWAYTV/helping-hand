@@ -76,6 +76,8 @@ def humanized_delay(
     # Ensure minimum delay of 0.1s
     final_delay = max(0.1, final_delay)
 
+    logger.debug(f"Delaying {action} for {final_delay:.2f}s")
+
     sleep(final_delay)
 
 
@@ -110,6 +112,8 @@ def advanced_humanized_delay(
     # Final calculation
     final_delay = base_delay + jitter_1 + jitter_2 + pause_bonus + micro_hesitation
     final_delay = max(0.1, final_delay)
+
+    logger.debug(f"Delaying {action} (advanced) for {final_delay:.2f}s")
 
     sleep(final_delay)
 

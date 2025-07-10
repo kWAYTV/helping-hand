@@ -7,6 +7,7 @@ import chess.engine
 from loguru import logger
 
 from ..config import ConfigManager
+from ..utils.resilience import retry_on_exception, safe_execute
 
 
 class ChessEngine:
@@ -55,12 +56,18 @@ class ChessEngine:
             logger.error(f"Failed to start chess engine: {e}")
             raise
 
+    @retry_on_exception(
+        max_retries=3,
+        delay=1.0,
+        exceptions=(chess.engine.EngineError, chess.engine.EngineTerminatedError),
+    )
     def get_best_move(
         self, board: chess.Board, depth: Optional[int] = None
     ) -> chess.engine.PlayResult:
         """Get the best move for the current position"""
         if not self.engine:
-            raise RuntimeError("Engine not initialized")
+            logger.warning("Engine not initialized, attempting to reinitialize")
+            self._initialize_engine()
 
         if depth is None:
             # Use standardized hyphenated key with backward compatibility
@@ -82,12 +89,18 @@ class ChessEngine:
         logger.debug(f"Engine suggests: {result.move}")
         return result
 
+    @retry_on_exception(
+        max_retries=2,
+        delay=0.5,
+        exceptions=(chess.engine.EngineError, chess.engine.EngineTerminatedError),
+    )
     def analyze_position(
         self, board: chess.Board, time_limit: float = 1.0
     ) -> Dict[str, Any]:
         """Analyze the current position"""
         if not self.engine:
-            raise RuntimeError("Engine not initialized")
+            logger.warning("Engine not initialized, attempting to reinitialize")
+            self._initialize_engine()
 
         info = self.engine.analyse(board, chess.engine.Limit(time=time_limit))
 
@@ -101,5 +114,5 @@ class ChessEngine:
         """Stop the chess engine"""
         if self.engine:
             logger.debug("Stopping chess engine")
-            self.engine.quit()
+            safe_execute(self.engine.quit, log_errors=True)
             self.engine = None

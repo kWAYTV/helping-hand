@@ -37,12 +37,25 @@ def main():
         logger.error(f"Unexpected error: {e}")
         raise
     finally:
-        # Cleanup if game_manager exists
-        try:
-            if "game_manager" in locals():
+        # Enhanced cleanup with better error handling
+        if "game_manager" in locals():
+            try:
                 game_manager.cleanup()
-        except:
-            pass
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup: {cleanup_error}")
+                # Force cleanup critical resources
+                try:
+                    if (
+                        hasattr(game_manager, "browser_manager")
+                        and game_manager.browser_manager
+                    ):
+                        if (
+                            hasattr(game_manager.browser_manager, "driver")
+                            and game_manager.browser_manager.driver
+                        ):
+                            game_manager.browser_manager.driver.quit()
+                except:
+                    pass
 
 
 if __name__ == "__main__":

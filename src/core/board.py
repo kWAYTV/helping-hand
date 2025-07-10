@@ -15,6 +15,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from ..core.browser import BrowserManager
 from ..utils.debug import DebugUtils
 from ..utils.helpers import advanced_humanized_delay, humanized_delay
+from ..utils.resilience import element_retry, move_retry, safe_execute
 
 
 class BoardHandler:
@@ -100,6 +101,7 @@ class BoardHandler:
             logger.info("Playing as BLACK")
             return "B"
 
+    @element_retry(max_retries=3, delay=1.0)
     def get_move_input_handle(self):
         """Get the move input element"""
         # Try multiple selectors for better reliability
@@ -143,6 +145,7 @@ class BoardHandler:
         logger.error("Could not find move input handle with any selector")
         return None
 
+    @move_retry(max_retries=3, delay=0.5)
     def find_move_by_alternatives(self, move_number: int):
         """Try alternative selectors to find moves"""
         # Try finding all moves and get by index (most reliable)
@@ -271,6 +274,7 @@ class BoardHandler:
             self.debug_utils.save_debug_info(self.driver, move_number, board)
             return False
 
+    @move_retry(max_retries=3, delay=1.0)
     def execute_move(self, move: chess.Move, move_number: int) -> None:
         """Execute a move through the interface"""
         logger.debug(f"Executing move: {move}")
@@ -287,7 +291,7 @@ class BoardHandler:
         move_handle = self.get_move_input_handle()
         if not move_handle:
             logger.error("Failed to get fresh move input handle")
-            return
+            raise Exception("Could not find move input handle")
 
         # Advanced humanized typing delay
         if self.config_manager:
@@ -295,16 +299,20 @@ class BoardHandler:
         else:
             humanized_delay(0.3, 0.8, "move input")
 
-        move_handle.send_keys(Keys.RETURN)
-        move_handle.clear()
+        # Execute move input with safe execution
+        def _send_move_input():
+            move_handle.send_keys(Keys.RETURN)
+            move_handle.clear()
 
-        # Type move with slight delay and additional jitter
-        if self.config_manager:
-            advanced_humanized_delay("typing move", self.config_manager, "base")
-        else:
-            humanized_delay(0.2, 0.5, "typing move")
+            # Type move with slight delay and additional jitter
+            if self.config_manager:
+                advanced_humanized_delay("typing move", self.config_manager, "base")
+            else:
+                humanized_delay(0.2, 0.5, "typing move")
 
-        move_handle.send_keys(str(move))
+            move_handle.send_keys(str(move))
+
+        safe_execute(_send_move_input, log_errors=True)
 
     def clear_arrow(self) -> None:
         """Clear any arrows on the board"""
@@ -494,4 +502,11 @@ class BoardHandler:
 
     def is_game_over(self) -> bool:
         """Check if game is over (follow-up element exists)"""
-        return bool(self.browser_manager.check_exists_by_class("follow-up"))
+        return bool(
+            safe_execute(
+                self.browser_manager.check_exists_by_class,
+                "follow-up",
+                default_return=False,
+                log_errors=False,
+            )
+        )

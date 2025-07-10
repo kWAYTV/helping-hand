@@ -10,6 +10,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
 from ..utils.helpers import get_geckodriver_path, install_firefox_extensions
+from ..utils.resilience import browser_retry, element_retry, safe_execute
 
 
 class BrowserManager:
@@ -60,6 +61,7 @@ class BrowserManager:
             raise RuntimeError("WebDriver not initialized")
         return self.driver
 
+    @browser_retry(max_retries=3, delay=2.0)
     def navigate_to(self, url: str) -> None:
         """Navigate to a URL"""
         if self.driver:
@@ -68,6 +70,7 @@ class BrowserManager:
         else:
             raise RuntimeError("WebDriver not initialized")
 
+    @element_retry(max_retries=2, delay=0.5)
     def check_exists_by_xpath(self, xpath: str):
         """Check if element exists by XPath"""
         try:
@@ -76,6 +79,7 @@ class BrowserManager:
         except NoSuchElementException:
             return False
 
+    @element_retry(max_retries=2, delay=0.5)
     def check_exists_by_class(self, classname: str):
         """Check if element exists by class name"""
         try:

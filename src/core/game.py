@@ -14,6 +14,13 @@ from ..core.engine import ChessEngine
 from ..input.keyboard_handler import KeyboardHandler
 from ..utils.debug import DebugUtils
 from ..utils.helpers import advanced_humanized_delay
+from ..utils.resilience import (
+    BrowserRecoveryManager,
+    browser_retry,
+    safe_execute,
+    validate_game_state,
+    with_browser_recovery,
+)
 
 
 class GameManager:
@@ -30,6 +37,9 @@ class GameManager:
         self.chess_engine = ChessEngine(self.config_manager)
         self.keyboard_handler = KeyboardHandler(self.config_manager)
         self.lichess_auth = LichessAuth(self.config_manager, self.browser_manager)
+
+        # Initialize resilience components
+        self.browser_recovery_manager = BrowserRecoveryManager(self.browser_manager)
 
         self.board = chess.Board()
         self.current_game_active = False
@@ -53,9 +63,17 @@ class GameManager:
         logger.debug("Starting keyboard listener")
         self.keyboard_handler.start_listening()
 
-        # Navigate to Lichess
+        # Navigate to Lichess with recovery
         logger.debug("Navigating to lichess.org")
-        self.browser_manager.navigate_to("https://www.lichess.org")
+        try:
+            self.browser_manager.navigate_to("https://www.lichess.org")
+        except Exception as e:
+            logger.error(f"Failed to navigate to Lichess: {e}")
+            if self.browser_recovery_manager.attempt_browser_recovery():
+                logger.info("Retrying navigation after browser recovery")
+                self.browser_manager.navigate_to("https://www.lichess.org")
+            else:
+                raise
 
         # Show cookie status
         cookie_info = self.browser_manager.get_cookies_info()
@@ -76,21 +94,60 @@ class GameManager:
         self.start_new_game()
 
     def start_new_game(self) -> None:
-        """Start a new game"""
+        """Start a new game with enhanced error handling"""
         logger.debug("Starting new game - resetting board")
         self.board.reset()
         self.current_game_active = True
 
-        # Wait for game to be ready
-        if not self.board_handler.wait_for_game_ready():
-            logger.error("Failed to wait for game ready")
-            return
+        # Wait for game to be ready with retries
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                if self.board_handler.wait_for_game_ready():
+                    break
+                else:
+                    logger.warning(
+                        f"Game ready attempt {attempt + 1}/{max_attempts} failed"
+                    )
+                    if attempt < max_attempts - 1:
+                        sleep(2)
+                    else:
+                        logger.error("Failed to wait for game ready after all attempts")
+                        return
+            except Exception as e:
+                logger.error(
+                    f"Error waiting for game ready (attempt {attempt + 1}): {e}"
+                )
+                if (
+                    attempt < max_attempts - 1
+                    and self.browser_recovery_manager.attempt_browser_recovery()
+                ):
+                    logger.info("Retrying after browser recovery")
+                    continue
+                else:
+                    logger.error("Failed to start new game")
+                    return
 
-        # Determine our color
-        our_color = self.board_handler.determine_player_color()
+        # Determine our color with fallback
+        try:
+            our_color = self.board_handler.determine_player_color()
+        except Exception as e:
+            logger.error(f"Failed to determine player color: {e}")
+            logger.warning("Assuming we're playing as White")
+            our_color = "W"
 
-        # Start playing
-        self.play_game(our_color)
+        # Start playing with enhanced error handling
+        try:
+            self.play_game(our_color)
+        except Exception as e:
+            logger.error(f"Game play failed: {e}")
+            self.debug_utils.save_debug_info(self.browser_manager.driver, 0, self.board)
+            # Attempt recovery and restart
+            if self.browser_recovery_manager.attempt_browser_recovery():
+                logger.info("Attempting to restart game after recovery")
+                self.start_new_game()
+            else:
+                logger.error("Could not recover from game error")
 
     def play_game(self, our_color: str) -> None:
         """Main game playing loop"""
@@ -126,19 +183,71 @@ class GameManager:
                     f"Joined game in progress - waiting for opponent's move {move_number}"
                 )
 
-        # Main game loop
+        # Main game loop with enhanced error handling
+        consecutive_errors = 0
+        max_consecutive_errors = 5
+
         while not self.board_handler.is_game_over():
-            our_turn = self._is_our_turn(our_color)
-            previous_move_number = move_number
+            try:
+                # Validate game state periodically
+                if not validate_game_state(self.board, move_number):
+                    logger.warning("Game state validation failed, attempting recovery")
+                    self.debug_utils.save_debug_info(
+                        self.browser_manager.driver, move_number, self.board
+                    )
 
-            if our_turn:
-                move_number = self._handle_our_turn(move_number, our_color)
-            else:
-                move_number = self._handle_opponent_turn(move_number)
+                    # Try to recover by refreshing the page
+                    if self.browser_recovery_manager.is_browser_healthy():
+                        logger.info("Attempting page refresh to recover game state")
+                        self.browser_manager.driver.refresh()
+                        sleep(5)  # Wait for page to load
+                        continue
+                    else:
+                        logger.error("Browser not healthy, attempting recovery")
+                        if not self.browser_recovery_manager.attempt_browser_recovery():
+                            logger.error("Could not recover browser, exiting game")
+                            break
 
-            # Prevent infinite loops
-            if move_number == previous_move_number:
-                sleep(0.1)
+                our_turn = self._is_our_turn(our_color)
+                previous_move_number = move_number
+
+                if our_turn:
+                    move_number = self._handle_our_turn(move_number, our_color)
+                else:
+                    move_number = self._handle_opponent_turn(move_number)
+
+                # Prevent infinite loops
+                if move_number == previous_move_number:
+                    sleep(0.1)
+
+                # Reset error counter on successful iteration
+                consecutive_errors = 0
+
+            except Exception as e:
+                consecutive_errors += 1
+                logger.error(f"Error in game loop (attempt {consecutive_errors}): {e}")
+
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.error(
+                        f"Too many consecutive errors ({consecutive_errors}), exiting game"
+                    )
+                    self.debug_utils.save_debug_info(
+                        self.browser_manager.driver, move_number, self.board
+                    )
+                    break
+
+                # Try browser recovery for critical errors
+                if not self.browser_recovery_manager.is_browser_healthy():
+                    logger.warning("Browser unhealthy, attempting recovery")
+                    if self.browser_recovery_manager.attempt_browser_recovery():
+                        logger.info("Browser recovery successful, continuing game")
+                        continue
+                    else:
+                        logger.error("Browser recovery failed, exiting game")
+                        break
+
+                # Small delay before retrying
+                sleep(2)
 
         # Game complete
         logger.debug("Game completed - follow-up element detected")
@@ -284,14 +393,25 @@ class GameManager:
             logger.info("GAME FINISHED - Result details not available")
 
     def cleanup(self) -> None:
-        """Clean up resources"""
+        """Clean up resources with enhanced error handling"""
         logger.info("Cleaning up resources")
 
+        # Clean up keyboard handler
         if self.keyboard_handler:
-            self.keyboard_handler.stop_listening()
+            safe_execute(
+                self.keyboard_handler.stop_listening,
+                log_errors=True,
+                default_return=None,
+            )
 
+        # Clean up chess engine
         if self.chess_engine:
-            self.chess_engine.quit()
+            safe_execute(self.chess_engine.quit, log_errors=True, default_return=None)
 
+        # Clean up browser
         if self.browser_manager:
-            self.browser_manager.close()
+            safe_execute(
+                self.browser_manager.close, log_errors=True, default_return=None
+            )
+
+        logger.info("Resource cleanup completed")

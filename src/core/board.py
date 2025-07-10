@@ -215,7 +215,7 @@ class BoardHandler:
             self.debug_utils.save_debug_info(self.driver, move_number, board)
             return False
 
-    def execute_move(self, move: chess.Move, move_handle, move_number: int) -> None:
+    def execute_move(self, move: chess.Move, move_number: int) -> None:
         """Execute a move through the interface"""
         logger.debug(f"Executing move: {move}")
 
@@ -226,6 +226,12 @@ class BoardHandler:
             humanized_delay(0.5, 1.5, "move execution")
 
         self.clear_arrow()
+
+        # Get fresh move handle to avoid stale element reference
+        move_handle = self.get_move_input_handle()
+        if not move_handle:
+            logger.error("Failed to get fresh move input handle")
+            return
 
         # Advanced humanized typing delay
         if self.config_manager:

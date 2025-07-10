@@ -96,13 +96,7 @@ class GameManager:
         """Main game playing loop"""
         logger.debug(f"Starting play_game as {our_color}")
 
-        # Get move input handle
-        move_handle = self.board_handler.get_move_input_handle()
-        if not move_handle:
-            logger.error("Failed to get move input handle")
-            return
-
-            # Get previous moves to sync board state
+        # Get previous moves to sync board state
         move_number = self.board_handler.get_previous_moves(self.board)
         logger.debug(f"Ready to play. Starting at move number: {move_number}")
 
@@ -128,7 +122,7 @@ class GameManager:
             previous_move_number = move_number
 
             if our_turn:
-                move_number = self._handle_our_turn(move_number, move_handle, our_color)
+                move_number = self._handle_our_turn(move_number, our_color)
             else:
                 move_number = self._handle_opponent_turn(move_number)
 
@@ -148,7 +142,7 @@ class GameManager:
             not self.board.turn and our_color == "B"
         )
 
-    def _handle_our_turn(self, move_number: int, move_handle, our_color: str) -> int:
+    def _handle_our_turn(self, move_number: int, our_color: str) -> int:
         """Handle our turn logic"""
         # Check if we already made the move
         move_text = self.board_handler.check_for_move(move_number)
@@ -178,16 +172,12 @@ class GameManager:
 
         # Handle move execution based on mode
         if self.config_manager.is_autoplay_enabled:
-            return self._execute_auto_move(
-                result.move, move_handle, move_number, our_color
-            )
+            return self._execute_auto_move(result.move, move_number, our_color)
         else:
-            return self._handle_manual_move(
-                result.move, move_handle, move_number, our_color
-            )
+            return self._handle_manual_move(result.move, move_number, our_color)
 
     def _execute_auto_move(
-        self, move: chess.Move, move_handle, move_number: int, our_color: str
+        self, move: chess.Move, move_number: int, our_color: str
     ) -> int:
         """Execute move automatically"""
         logger.debug(f"AutoPlay enabled - making move: {move}")
@@ -199,13 +189,13 @@ class GameManager:
             # Brief delay to show the arrow
             advanced_humanized_delay("showing arrow", self.config_manager, "base")
 
-        self.board_handler.execute_move(move, move_handle, move_number)
+        self.board_handler.execute_move(move, move_number)
         self.board.push(move)
 
         return move_number + 1
 
     def _handle_manual_move(
-        self, move: chess.Move, move_handle, move_number: int, our_color: str
+        self, move: chess.Move, move_number: int, our_color: str
     ) -> int:
         """Handle manual move execution"""
         # Show arrow if enabled (only draw once per turn)
@@ -222,7 +212,7 @@ class GameManager:
         if self.keyboard_handler.should_make_move():
             logger.info(f"Manual key press detected - making move: {move}")
 
-            self.board_handler.execute_move(move, move_handle, move_number)
+            self.board_handler.execute_move(move, move_number)
             self.keyboard_handler.reset_move_state()
             self.board.push(move)
 

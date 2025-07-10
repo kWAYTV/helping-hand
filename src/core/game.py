@@ -190,7 +190,7 @@ class GameManager:
         self, move: chess.Move, move_number: int, our_color: str
     ) -> int:
         """Execute move automatically"""
-        logger.debug(f"AutoPlay enabled - making move: {move}")
+        logger.debug(f"Making move: {move}")
 
         # Show arrow briefly if enabled, even in autoplay
         if self.config_manager.show_arrow:

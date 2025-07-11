@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bump version and push tag
+      - name: Bump Version and Push Tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
@@ -32,16 +32,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build EXE
+      - name: Build Binary
         run: |
           pyinstaller --onefile --noconsole --icon="assets/icon.ico" --name helping-hand main.py
+
+      - name: Create Release Package
+        run: |
+          mkdir release-package
+          copy dist\helping-hand.exe release-package\
+          xcopy deps release-package\deps /E /I
+          powershell Compress-Archive -Path release-package\* -DestinationPath helping-hand-${{ steps.tag_version.outputs.new_tag }}.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
-          files: dist/helping-hand.exe
+          files: helping-hand-${{ steps.tag_version.outputs.new_tag }}.zip
           draft: false
           prerelease: false
         env:

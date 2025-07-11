@@ -4,7 +4,7 @@ echo Building Binary...
 
 :: Build executable
 echo Starting PyInstaller...
-call pyinstaller --onefile --noconsole --icon="assets\icon.ico" --name helping-hand main.py
+call pyinstaller --onefile --icon="assets\icon.ico" --name helping-hand main.py
 echo PyInstaller finished
 
 :: Clean build artifacts

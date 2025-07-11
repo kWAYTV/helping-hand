@@ -6,16 +6,14 @@ Professional automated chess bot for Lichess.org with Stockfish engine integrati
 
 Pre-built executables are available in [GitHub Releases](https://github.com/kWAYTV/helping-hand/releases).
 
-**Important:** Download the executable and place the entire `deps/` folder in the same directory as the `.exe` file.
-
 ## 🚀 Quick Start
 
 ### From Release (Recommended)
 
-1. Download the latest release executable
-2. Download and place the `deps/` folder alongside the `.exe`
+1. Download the latest release zip file
+2. Extract the zip file to your desired location
 3. Configure `config.ini` (copy from `config.example.ini`)
-4. Run the executable
+4. Run `helping-hand.exe`
 
 ### From Source
 

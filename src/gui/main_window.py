@@ -23,9 +23,9 @@ class ChessBotGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Chess Bot - Helping Hand")
-        self.root.geometry("1400x900")  # Increased size for better layout
+        self.root.geometry("1200x750")  # More compact with tabbed interface
         self.root.configure(bg="#2b2b2b")
-        self.root.minsize(1200, 800)  # Set minimum window size
+        self.root.minsize(1000, 650)  # Reduced minimum size for compact layout
 
         # Set window icon
         try:
@@ -85,42 +85,42 @@ class ChessBotGUI:
             self.main_container, text="Chess Board", padding=15
         )
         self.chess_board = ChessBoardWidget(
-            self.board_frame, size=450
-        )  # Slightly larger board
+            self.board_frame, size=500
+        )  # Balanced size for compact tabbed layout
 
-        # Right panel - Game information (split into sections)
+        # Right panel - Tabbed interface for compact layout
         self.info_frame = ttk.Frame(self.main_container)
 
-        # Top right - Status and controls
-        self.status_frame = ttk.LabelFrame(
-            self.info_frame, text="Game Status", padding=10
-        )
-        self.status_panel = StatusPanel(self.status_frame)
+        # Create notebook (tab container)
+        self.notebook = ttk.Notebook(self.info_frame)
 
-        # Middle right - Move history
-        self.history_frame = ttk.LabelFrame(
-            self.info_frame, text="Move History", padding=10
-        )
-        self.move_history_panel = MoveHistoryPanel(self.history_frame)
+        # Tab 1: Game Status
+        self.status_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.status_tab, text="🎯 Status")
+        self.status_panel = StatusPanel(self.status_tab)
 
-        # Bottom right - Console output
-        self.console_frame = ttk.LabelFrame(
-            self.info_frame, text="Console Output", padding=8
-        )
+        # Tab 2: Move History
+        self.history_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.history_tab, text="📋 History")
+        self.move_history_panel = MoveHistoryPanel(self.history_tab)
+
+        # Tab 3: Console Output
+        self.console_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.console_tab, text="💻 Console")
+
+        # Console text widget with full height utilization
         self.console_text = scrolledtext.ScrolledText(
-            self.console_frame,
-            height=18,  # Increased height
-            width=60,  # Increased width
+            self.console_tab,
             bg="#1e1e1e",
             fg="#ffffff",
             font=("Consolas", 9),
             state=tk.DISABLED,
-            insertbackground="#ffffff",  # Cursor color
-            selectbackground="#404040",  # Selection background
-            selectforeground="#ffffff",  # Selection text color
+            insertbackground="#ffffff",
+            selectbackground="#404040",
+            selectforeground="#ffffff",
             borderwidth=1,
             relief="solid",
-            wrap=tk.WORD,  # Word wrapping for better readability
+            wrap=tk.WORD,
         )
 
         # Enhanced bottom status bar with multiple sections
@@ -171,40 +171,41 @@ class ChessBotGUI:
         # Configure main grid weights for responsive layout
         self.main_container.grid_rowconfigure(0, weight=1)
         self.main_container.grid_columnconfigure(
-            0, weight=0, minsize=480
-        )  # Fixed chess board area
+            0, weight=0, minsize=530
+        )  # Fixed chess board area for compact layout
         self.main_container.grid_columnconfigure(
-            1, weight=1, minsize=600
-        )  # Flexible info area
+            1, weight=1, minsize=450
+        )  # Flexible info area - compact with tabs
 
         # Left panel - Chess board (fixed size)
         self.board_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         self.chess_board.pack(anchor="center")
 
-        # Right panel - Information sections
+        # Right panel - Tabbed interface
         self.info_frame.grid(row=0, column=1, sticky="nsew")
 
-        # Configure right panel grid weights
-        self.info_frame.grid_rowconfigure(0, weight=0)  # Status (fixed height)
-        self.info_frame.grid_rowconfigure(1, weight=0)  # Move history (fixed height)
-        self.info_frame.grid_rowconfigure(2, weight=1)  # Console (expandable)
+        # Configure right panel for single notebook
+        self.info_frame.grid_rowconfigure(0, weight=1)
         self.info_frame.grid_columnconfigure(0, weight=1)
 
-        # Status panel (top right)
-        self.status_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        self.status_panel.grid(row=0, column=0, sticky="ew")
+        # Pack notebook to fill entire right panel
+        self.notebook.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Move history panel (middle right)
-        self.history_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
-        self.history_frame.grid_rowconfigure(0, weight=1)
-        self.history_frame.grid_columnconfigure(0, weight=1)
-        self.move_history_panel.grid(row=0, column=0, sticky="nsew")
+        # Configure individual tabs
+        # Status tab
+        self.status_tab.grid_rowconfigure(0, weight=1)
+        self.status_tab.grid_columnconfigure(0, weight=1)
+        self.status_panel.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        # Console output (bottom right - expandable)
-        self.console_frame.grid(row=2, column=0, sticky="nsew")
-        self.console_frame.grid_rowconfigure(0, weight=1)
-        self.console_frame.grid_columnconfigure(0, weight=1)
-        self.console_text.grid(row=0, column=0, sticky="nsew")
+        # History tab
+        self.history_tab.grid_rowconfigure(0, weight=1)
+        self.history_tab.grid_columnconfigure(0, weight=1)
+        self.move_history_panel.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        # Console tab
+        self.console_tab.grid_rowconfigure(0, weight=1)
+        self.console_tab.grid_columnconfigure(0, weight=1)
+        self.console_text.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Status bar (bottom of window)
         self.status_bar_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(2, 0))
@@ -637,3 +638,10 @@ class ChessBotGUI:
     def is_gui_running(self) -> bool:
         """Check if GUI is still running"""
         return self.is_running
+
+    def switch_to_tab(self, tab_name: str):
+        """Switch to specific tab by name"""
+        tab_mapping = {"status": 0, "history": 1, "console": 2}
+
+        if tab_name.lower() in tab_mapping:
+            self.notebook.select(tab_mapping[tab_name.lower()])

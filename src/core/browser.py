@@ -4,6 +4,7 @@ import json
 import os
 from typing import Optional
 
+import ua_generator
 from loguru import logger
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -35,10 +36,13 @@ class BrowserManager:
         """Initialize Firefox WebDriver with options"""
         try:
             # === BROWSER INITIALIZATION ===
-            webdriver_options = webdriver.FirefoxOptions()
-            webdriver_options.add_argument(
-                f'--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"'
+            # Generate realistic user agent
+            ua = ua_generator.generate(
+                browser="firefox", platform=("windows", "macos", "linux")
             )
+
+            webdriver_options = webdriver.FirefoxOptions()
+            webdriver_options.add_argument(f'--user-agent="{ua.text}"')
 
             firefox_service = webdriver.firefox.service.Service(
                 executable_path=get_geckodriver_path()
@@ -52,6 +56,7 @@ class BrowserManager:
             install_firefox_extensions(self.driver)
 
             logger.info("Firefox WebDriver initialized successfully")
+            logger.debug(f"User Agent: {ua.text}")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")
             raise

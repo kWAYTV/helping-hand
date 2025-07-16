@@ -26,7 +26,10 @@ class MoveHistoryPanel:
 
         # Canvas and scrollbar for custom move display
         self.canvas = tk.Canvas(
-            self.moves_frame, bg="#1e1e1e", height=120, highlightthickness=0
+            self.moves_frame,
+            bg="#1e1e1e",
+            height=180,
+            highlightthickness=0,  # Increased height
         )
 
         self.scrollbar = ttk.Scrollbar(
@@ -126,7 +129,7 @@ class MoveHistoryPanel:
         """Create widget for a move pair"""
         # Main frame for this move pair
         pair_frame = tk.Frame(self.moves_content, bg="#1e1e1e")
-        pair_frame.pack(fill="x", padx=2, pady=1)
+        pair_frame.pack(fill="x", padx=4, pady=2)  # Increased padding
 
         # Move number
         number_label = tk.Label(
@@ -135,10 +138,10 @@ class MoveHistoryPanel:
             fg="#ffffff",
             bg="#1e1e1e",
             font=("Arial", 10, "bold"),
-            width=3,
+            width=4,  # Slightly wider
             anchor="w",
         )
-        number_label.pack(side="left", padx=(0, 5))
+        number_label.pack(side="left", padx=(0, 8))  # More spacing
 
         # White move
         white_move = pair["white"]
@@ -149,11 +152,15 @@ class MoveHistoryPanel:
                 text=white_move["move"],
                 fg=white_color,
                 bg="#1e1e1e",
-                font=("Arial", 10),
-                width=8,
+                font=(
+                    "Arial",
+                    10,
+                    "bold" if white_move["player"] == "us" else "normal",
+                ),
+                width=10,  # Wider for better readability
                 anchor="w",
             )
-            white_label.pack(side="left", padx=(0, 10))
+            white_label.pack(side="left", padx=(0, 15))  # More spacing
 
         # Black move
         black_move = pair["black"]
@@ -164,8 +171,12 @@ class MoveHistoryPanel:
                 text=black_move["move"],
                 fg=black_color,
                 bg="#1e1e1e",
-                font=("Arial", 10),
-                width=8,
+                font=(
+                    "Arial",
+                    10,
+                    "bold" if black_move["player"] == "us" else "normal",
+                ),
+                width=10,  # Wider for better readability
                 anchor="w",
             )
             black_label.pack(side="left")

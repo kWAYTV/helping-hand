@@ -72,43 +72,43 @@ class StatusPanel:
         """Setup widget layout"""
         # Configure grid weights
         self.frame.grid_columnconfigure(1, weight=1)
+        self.frame.grid_columnconfigure(
+            3, weight=1
+        )  # Add second column for better layout
 
-        # Layout widgets
+        # Layout widgets in a 2-column format for better space usage
         row = 0
 
-        # Game status
+        # Game status (spans both columns)
         self.status_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
-        self.status_value.grid(row=row, column=1, sticky="w")
+        self.status_value.grid(row=row, column=1, columnspan=3, sticky="w")
         row += 1
 
-        # Bot mode
+        # Bot mode and Our color (side by side)
         self.mode_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
-        self.mode_value.grid(row=row, column=1, sticky="w")
+        self.mode_value.grid(row=row, column=1, sticky="w", padx=(0, 20))
+        self.color_label.grid(row=row, column=2, sticky="w", padx=(0, 10))
+        self.color_value.grid(row=row, column=3, sticky="w")
         row += 1
 
-        # Our color
-        self.color_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
-        self.color_value.grid(row=row, column=1, sticky="w")
-        row += 1
-
-        # Engine depth
+        # Engine depth (left side only)
         self.depth_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
         self.depth_value.grid(row=row, column=1, sticky="w")
         row += 1
 
         # Separator
         separator = ttk.Separator(self.frame, orient="horizontal")
-        separator.grid(row=row, column=0, columnspan=2, sticky="ew", pady=5)
+        separator.grid(row=row, column=0, columnspan=4, sticky="ew", pady=8)
         row += 1
 
-        # Current suggestion
-        self.suggestion_label.grid(row=row, column=0, columnspan=2, sticky="w")
+        # Current suggestion (spans both columns)
+        self.suggestion_label.grid(row=row, column=0, columnspan=4, sticky="w")
         row += 1
 
-        self.suggestion_value.grid(row=row, column=0, columnspan=2, sticky="w")
+        self.suggestion_value.grid(row=row, column=0, columnspan=4, sticky="w")
         row += 1
 
-        self.evaluation_value.grid(row=row, column=0, columnspan=2, sticky="w")
+        self.evaluation_value.grid(row=row, column=0, columnspan=4, sticky="w")
 
     def grid(self, **kwargs):
         """Grid the status panel"""

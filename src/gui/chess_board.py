@@ -95,24 +95,24 @@ class ChessBoardWidget:
 
     def _add_coordinates(self):
         """Add coordinate labels to the board"""
-        # File labels (a-h)
+        # File labels (a-h) - bottom
         files = "abcdefgh"
         for i, file_char in enumerate(files):
             x = i * self.square_size + self.square_size // 2
-            y = self.size + 15
+            y = self.size + 20  # Slightly more space
 
             self.canvas.create_text(
-                x, y, text=file_char, fill="#ffffff", font=("Arial", 10, "bold")
+                x, y, text=file_char, fill="#cccccc", font=("Arial", 11, "bold")
             )
 
-        # Rank labels (1-8)
+        # Rank labels (1-8) - left side
         for i in range(8):
             rank = 8 - i if not self.flipped else i + 1
-            x = -15
+            x = -20  # Slightly more space
             y = i * self.square_size + self.square_size // 2
 
             self.canvas.create_text(
-                x, y, text=str(rank), fill="#ffffff", font=("Arial", 10, "bold")
+                x, y, text=str(rank), fill="#cccccc", font=("Arial", 11, "bold")
             )
 
     def _square_to_coords(self, square: int) -> Tuple[int, int]:

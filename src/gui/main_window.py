@@ -22,8 +22,9 @@ class ChessBotGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Chess Bot - Helping Hand")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x900")  # Increased size for better layout
         self.root.configure(bg="#2b2b2b")
+        self.root.minsize(1200, 800)  # Set minimum window size
 
         # Set window icon
         try:
@@ -70,34 +71,40 @@ class ChessBotGUI:
 
     def _create_widgets(self):
         """Create all GUI widgets"""
-        # Main frame
-        self.main_frame = ttk.Frame(self.root)
+        # Main container with padding
+        self.main_container = ttk.Frame(self.root)
 
         # Left panel - Chess board
         self.board_frame = ttk.LabelFrame(
-            self.main_frame, text="Chess Board", padding=10
+            self.main_container, text="Chess Board", padding=15
         )
-        self.chess_board = ChessBoardWidget(self.board_frame, size=400)
+        self.chess_board = ChessBoardWidget(
+            self.board_frame, size=450
+        )  # Slightly larger board
 
-        # Right panel - Game information
-        self.info_frame = ttk.LabelFrame(
-            self.main_frame, text="Game Information", padding=10
+        # Right panel - Game information (split into sections)
+        self.info_frame = ttk.Frame(self.main_container)
+
+        # Top right - Status and controls
+        self.status_frame = ttk.LabelFrame(
+            self.info_frame, text="Game Status", padding=10
         )
+        self.status_panel = StatusPanel(self.status_frame)
 
-        # Status panel
-        self.status_panel = StatusPanel(self.info_frame)
+        # Middle right - Move history
+        self.history_frame = ttk.LabelFrame(
+            self.info_frame, text="Move History", padding=10
+        )
+        self.move_history_panel = MoveHistoryPanel(self.history_frame)
 
-        # Move history panel
-        self.move_history_panel = MoveHistoryPanel(self.info_frame)
-
-        # Console output
+        # Bottom right - Console output
         self.console_frame = ttk.LabelFrame(
-            self.info_frame, text="Console Output", padding=5
+            self.info_frame, text="Console Output", padding=8
         )
         self.console_text = scrolledtext.ScrolledText(
             self.console_frame,
-            height=15,
-            width=50,
+            height=18,  # Increased height
+            width=60,  # Increased width
             bg="#1e1e1e",
             fg="#ffffff",
             font=("Consolas", 9),
@@ -107,6 +114,7 @@ class ChessBotGUI:
             selectforeground="#ffffff",  # Selection text color
             borderwidth=1,
             relief="solid",
+            wrap=tk.WORD,  # Word wrapping for better readability
         )
 
         # Bottom status bar
@@ -117,35 +125,47 @@ class ChessBotGUI:
     def _setup_layout(self):
         """Setup the layout of widgets"""
         # Main layout
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        self.main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        # Configure grid weights
-        self.main_frame.grid_rowconfigure(0, weight=1)
-        self.main_frame.grid_columnconfigure(0, weight=0)
-        self.main_frame.grid_columnconfigure(1, weight=1)
+        # Configure main grid weights for responsive layout
+        self.main_container.grid_rowconfigure(0, weight=1)
+        self.main_container.grid_columnconfigure(
+            0, weight=0, minsize=480
+        )  # Fixed chess board area
+        self.main_container.grid_columnconfigure(
+            1, weight=1, minsize=600
+        )  # Flexible info area
 
-        # Left panel - Chess board
+        # Left panel - Chess board (fixed size)
         self.board_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        self.chess_board.pack(padx=10, pady=10)
+        self.chess_board.pack(anchor="center")
 
-        # Right panel - Information
+        # Right panel - Information sections
         self.info_frame.grid(row=0, column=1, sticky="nsew")
-        self.info_frame.grid_rowconfigure(2, weight=1)
+
+        # Configure right panel grid weights
+        self.info_frame.grid_rowconfigure(0, weight=0)  # Status (fixed height)
+        self.info_frame.grid_rowconfigure(1, weight=0)  # Move history (fixed height)
+        self.info_frame.grid_rowconfigure(2, weight=1)  # Console (expandable)
         self.info_frame.grid_columnconfigure(0, weight=1)
 
-        # Status panel
-        self.status_panel.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        # Status panel (top right)
+        self.status_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        self.status_panel.grid(row=0, column=0, sticky="ew")
 
-        # Move history panel
-        self.move_history_panel.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        # Move history panel (middle right)
+        self.history_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        self.history_frame.grid_rowconfigure(0, weight=1)
+        self.history_frame.grid_columnconfigure(0, weight=1)
+        self.move_history_panel.grid(row=0, column=0, sticky="nsew")
 
-        # Console output
+        # Console output (bottom right - expandable)
         self.console_frame.grid(row=2, column=0, sticky="nsew")
         self.console_frame.grid_rowconfigure(0, weight=1)
         self.console_frame.grid_columnconfigure(0, weight=1)
         self.console_text.grid(row=0, column=0, sticky="nsew")
 
-        # Status bar
+        # Status bar (bottom of window)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
     def _setup_styles(self):
@@ -286,6 +306,11 @@ class ChessBotGUI:
 
         elif msg_type == "game_status":
             self.status_panel.update_status(message["status"])
+            # Update window title with current status
+            try:
+                self.root.title(f"Chess Bot - Helping Hand - {message['status']}")
+            except:
+                pass  # Ignore if window is closed
 
         elif msg_type == "suggestion":
             self._show_suggestion(message["move"], message["evaluation"])
@@ -329,7 +354,16 @@ class ChessBotGUI:
 
         # Apply color tags
         self.console_text.insert(tk.END, f"[{level}] {text}\n", level)
+
+        # Auto-scroll to bottom and limit buffer size
         self.console_text.see(tk.END)
+
+        # Limit console buffer to prevent memory issues (keep last 1000 lines)
+        lines = self.console_text.get("1.0", tk.END).count("\n")
+        if lines > 1000:
+            # Delete first 100 lines
+            self.console_text.delete("1.0", "101.0")
+
         self.console_text.config(state=tk.DISABLED)
 
     def _show_game_result(self, result: str):
@@ -352,6 +386,14 @@ class ChessBotGUI:
     def run(self):
         """Run the GUI main loop"""
         try:
+            # Center window on screen
+            self.root.update_idletasks()
+            width = self.root.winfo_width()
+            height = self.root.winfo_height()
+            x = (self.root.winfo_screenwidth() // 2) - (width // 2)
+            y = (self.root.winfo_screenheight() // 2) - (height // 2)
+            self.root.geometry(f"{width}x{height}+{x}+{y}")
+
             self.root.mainloop()
         except KeyboardInterrupt:
             self._on_closing()

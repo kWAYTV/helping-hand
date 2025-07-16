@@ -99,14 +99,23 @@ class ChessBotGUI:
         self.notebook.add(self.status_tab, text="🎯 Status")
         self.status_panel = StatusPanel(self.status_tab)
 
+        # Keep backward compatibility reference for any code expecting status_frame
+        self.status_frame = self.status_tab
+
         # Tab 2: Move History
         self.history_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.history_tab, text="📋 History")
         self.move_history_panel = MoveHistoryPanel(self.history_tab)
 
+        # Keep backward compatibility reference for any code expecting history_frame
+        self.history_frame = self.history_tab
+
         # Tab 3: Console Output
         self.console_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.console_tab, text="💻 Console")
+
+        # Keep backward compatibility reference for any code expecting console_frame
+        self.console_frame = self.console_tab
 
         # Console text widget with full height utilization
         self.console_text = scrolledtext.ScrolledText(

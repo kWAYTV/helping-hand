@@ -5,6 +5,8 @@ import time
 import pyotp
 from loguru import logger
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from ..config import ConfigManager
 from ..core.browser import BrowserManager
@@ -69,12 +71,17 @@ class LichessAuth:
             driver = self.browser_manager.get_driver()
 
             # === NAVIGATION TO LOGIN ===
-            # Click sign-in button
-            signin_button = driver.find_element(
-                by=By.XPATH, value="/html/body/header/div[2]/a"
+            # Check if we're already on login page, if not navigate to it
+            if "/login" not in driver.current_url:
+                driver.get("https://lichess.org/login")
+                logger.debug("Navigated to login page")
+            else:
+                logger.debug("Already on login page")
+
+            # Wait for login form to be available
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "form3-username"))
             )
-            signin_button.click()
-            logger.debug("Navigated to login page")
 
             # === CREDENTIAL INPUT ===
             # Enter credentials
@@ -96,10 +103,27 @@ class LichessAuth:
             logger.debug(f"Entered credentials for user: {username_value}")
 
             # Submit form
-            driver.find_element(
-                By.XPATH, "/html/body/div/main/form/div[1]/button"
-            ).click()
-            logger.debug("Submitted login credentials")
+            # Try multiple selectors for the submit button
+            submit_selectors = [
+                (By.CSS_SELECTOR, "button[type='submit']"),
+                (By.CSS_SELECTOR, ".submit.button"),
+                (By.XPATH, "//button[contains(text(), 'Sign in')]"),
+                (By.CSS_SELECTOR, "form button"),
+            ]
+
+            submitted = False
+            for method, selector in submit_selectors:
+                try:
+                    submit_button = driver.find_element(method, selector)
+                    submit_button.click()
+                    logger.debug(f"Submitted login credentials using: {selector}")
+                    submitted = True
+                    break
+                except:
+                    continue
+
+            if not submitted:
+                raise Exception("Could not find submit button")
 
             # Handle TOTP if needed
             if not self._handle_totp():

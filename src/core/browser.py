@@ -195,54 +195,56 @@ class BrowserManager:
             return False
 
         try:
-            # Check for login page indicators first (negative check)
-            login_indicators = [
-                'class="auth auth-login"',  # Login page class
-                "Sign in</h1>",  # Login page heading
-                'name="username"',  # Username input field
-                'name="password"',  # Password input field
-                "/login",  # Login URL
+            page_source = self.driver.page_source
+
+            # FIRST: Check for strong authentication indicators (these override login page detection)
+            strong_auth_patterns = [
+                'data-user="',  # User data attribute with username
+                'data-username="',  # Username data attribute
+                'href="/logout"',  # Actual logout link
             ]
 
-            page_source = self.driver.page_source
-            for indicator in login_indicators:
-                if indicator in page_source:
-                    logger.debug(f"Detected login page via: {indicator}")
-                    return False
+            for pattern in strong_auth_patterns:
+                if pattern in page_source:
+                    # Extract username for confirmation if possible
+                    if 'data-user="' in pattern:
+                        import re
 
-            # Look for definitive logged-in indicators
+                        match = re.search(r'data-user="([^"]+)"', page_source)
+                        if match:
+                            username = match.group(1)
+                            logger.debug(
+                                f"Authentication confirmed - logged in as: {username}"
+                            )
+                            return True
+                    logger.debug(
+                        f"Authentication confirmed via strong indicator: {pattern}"
+                    )
+                    return True
+
+            # SECOND: Look for logged-in UI elements
             user_indicators = [
                 "#user_tag",  # User menu
-                ".site-title .user",  # Username in header
-                "[data-icon='H']",  # User icon
-                "a[href*='/logout']",  # Logout link
-                ".account",  # Account menu
-                "#user_status",  # User status indicator
+                "a[href='/logout']",  # Logout link
+                ".dasher a",  # User dasher menu
             ]
 
             for selector in user_indicators:
                 try:
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    if element and element.is_displayed():
-                        # Additional check for logout link to be sure
-                        if "logout" in selector:
-                            logger.debug(
-                                f"Authentication confirmed via logout link: {selector}"
-                            )
-                            return True
-                        elif element.text.strip():
-                            logger.debug(f"Authentication confirmed via: {selector}")
-                            return True
+                    if element and element.is_displayed() and element.text.strip():
+                        logger.debug(
+                            f"Authentication confirmed via element: {selector} (text: {element.text.strip()})"
+                        )
+                        return True
                 except:
                     continue
 
-            # Check for specific logged-in content patterns
+            # THIRD: Check for weaker logged-in content patterns
             page_source_lower = page_source.lower()
             logged_in_patterns = [
-                'href="/logout"',  # Actual logout link
                 'href="/account"',  # Account page link
                 'class="user"',  # User class elements
-                "data-user=",  # User data attributes
             ]
 
             for pattern in logged_in_patterns:
@@ -250,7 +252,20 @@ class BrowserManager:
                     logger.debug(f"Authentication confirmed via pattern: {pattern}")
                     return True
 
-            logger.debug("No authentication indicators found")
+            # FOURTH: Only NOW check for login page indicators (as negative confirmation)
+            login_indicators = [
+                'class="auth auth-login"',  # Login page class
+                "Sign in</h1>",  # Login page heading
+                'id="form3-username"',  # Username input field
+                'id="form3-password"',  # Password input field
+            ]
+
+            for indicator in login_indicators:
+                if indicator in page_source:
+                    logger.debug(f"Login page detected via: {indicator}")
+                    return False
+
+            logger.debug("No clear authentication indicators found")
             return False
 
         except Exception as e:

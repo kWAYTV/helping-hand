@@ -355,9 +355,37 @@ class GameManager:
 
     def _is_our_turn(self, our_color: str) -> bool:
         """Check if it's our turn to move"""
-        return (self.board.turn and our_color == "W") or (
+        # First check the interface state for more accurate detection
+        interface_turn = self.board_handler.is_our_turn_via_interface()
+
+        if interface_turn is not None:
+            # Interface gives us a definitive answer
+            board_turn = (self.board.turn and our_color == "W") or (
+                not self.board.turn and our_color == "B"
+            )
+
+            if interface_turn != board_turn:
+                # Interface and board state disagree - interface is more reliable
+                logger.debug(
+                    f"Turn state mismatch: interface says {'our' if interface_turn else 'opponent'} turn, board says {'our' if board_turn else 'opponent'} turn"
+                )
+                logger.debug("Using interface state (more reliable)")
+                return interface_turn
+            else:
+                # Both agree - good synchronization
+                logger.debug(
+                    f"Turn state synchronized: {'our' if interface_turn else 'opponent'} turn"
+                )
+                return interface_turn
+
+        # Fallback to board state if interface check fails
+        board_turn = (self.board.turn and our_color == "W") or (
             not self.board.turn and our_color == "B"
         )
+        logger.debug(
+            f"Using board state for turn detection: {'our' if board_turn else 'opponent'} turn"
+        )
+        return board_turn
 
     def _handle_our_turn(self, move_number: int, our_color: str) -> int:
         """Handle our turn logic"""

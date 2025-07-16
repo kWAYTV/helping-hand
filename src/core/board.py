@@ -102,6 +102,95 @@ class BoardHandler:
             logger.info("Playing as Black")
             return "B"
 
+    def is_our_turn_via_interface(self) -> Optional[bool]:
+        """Check if it's our turn by examining the Lichess interface"""
+        try:
+            # Method 1: Check if move input is enabled and focused
+            move_input = self.get_move_input_handle()
+            if move_input:
+                # If input is enabled and ready, it's likely our turn
+                if (
+                    move_input.is_enabled()
+                    and move_input.get_attribute("class")
+                    and "ready" in move_input.get_attribute("class")
+                ):
+                    logger.debug("Turn detected via move input state: our turn")
+                    return True
+
+                # Check if input is disabled (opponent's turn)
+                if not move_input.is_enabled() or "disabled" in (
+                    move_input.get_attribute("class") or ""
+                ):
+                    logger.debug("Turn detected via move input state: opponent's turn")
+                    return False
+
+            # Method 2: Check for clock indicators (our clock running = our turn)
+            try:
+                # Look for active/running clock indicators
+                active_clocks = self.driver.find_elements(
+                    By.CSS_SELECTOR, ".clock.running"
+                )
+                if active_clocks:
+                    # If there's an active clock, determine which side it's on
+                    for clock in active_clocks:
+                        clock_classes = clock.get_attribute("class") or ""
+                        if "top" in clock_classes or "black" in clock_classes:
+                            # Black's clock is running
+                            our_color = self.determine_player_color()
+                            is_our_turn = our_color == "B"
+                            logger.debug(
+                                f"Turn detected via clock: {'our' if is_our_turn else 'opponent'} turn (Black clock running)"
+                            )
+                            return is_our_turn
+                        elif "bottom" in clock_classes or "white" in clock_classes:
+                            # White's clock is running
+                            our_color = self.determine_player_color()
+                            is_our_turn = our_color == "W"
+                            logger.debug(
+                                f"Turn detected via clock: {'our' if is_our_turn else 'opponent'} turn (White clock running)"
+                            )
+                            return is_our_turn
+            except Exception as e:
+                logger.debug(f"Could not check clock indicators: {e}")
+
+            # Method 3: Check for move highlighting or indicators
+            try:
+                # Look for elements that indicate whose turn it is
+                turn_indicators = [".turn", ".playing", ".to-move", "[data-turn]"]
+
+                for selector in turn_indicators:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for element in elements:
+                        element_text = element.text.lower()
+                        if "your turn" in element_text or "you to move" in element_text:
+                            logger.debug("Turn detected via turn indicator: our turn")
+                            return True
+                        elif "opponent" in element_text or "waiting" in element_text:
+                            logger.debug(
+                                "Turn detected via turn indicator: opponent's turn"
+                            )
+                            return False
+            except Exception as e:
+                logger.debug(f"Could not check turn indicators: {e}")
+
+            # Method 4: Check page classes or body attributes
+            try:
+                body = self.driver.find_element(By.TAG_NAME, "body")
+                body_classes = body.get_attribute("class") or ""
+
+                if "playing" in body_classes and "turn" in body_classes:
+                    # Additional logic to determine whose turn based on body classes
+                    pass
+            except Exception as e:
+                logger.debug(f"Could not check body classes: {e}")
+
+        except Exception as e:
+            logger.debug(f"Error checking interface turn state: {e}")
+
+        # If we can't determine from interface, return None
+        logger.debug("Could not determine turn state from interface")
+        return None
+
     @element_retry(max_retries=3, delay=1.0)
     def get_move_input_handle(self):
         """Get the move input element"""

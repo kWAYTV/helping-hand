@@ -5,3 +5,5 @@ chess
 pynput
 pyotp
 pyinstaller
+pillow
+tkinter

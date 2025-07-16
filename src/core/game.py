@@ -46,6 +46,9 @@ class GameManager:
         self._current_suggestion = None
         self._arrow_drawn = False
 
+        # GUI integration
+        self.gui_callback = None
+
     def start(self) -> None:
         """Start the chess bot application"""
         logger.info("Starting chess bot application")
@@ -135,6 +138,15 @@ class GameManager:
             logger.error(f"Failed to determine player color: {e}")
             logger.warning("Assuming we're playing as White")
             our_color = "W"
+
+        # Notify GUI of game info
+        self._notify_gui(
+            {
+                "type": "game_info",
+                "our_color": "white" if our_color == "W" else "black",
+                "game_active": True,
+            }
+        )
 
         # Start playing with enhanced error handling
         try:
@@ -286,6 +298,20 @@ class GameManager:
         dst_square = move_str[2:]
         logger.info(f"Engine suggests: {result.move} ({src_square} → {dst_square})")
 
+        # Notify GUI of suggestion
+        self._notify_gui(
+            {
+                "type": "suggestion",
+                "move": result.move,
+                "evaluation": {"depth": engine_depth},
+            }
+        )
+
+        # Update game info
+        self._notify_gui(
+            {"type": "game_info", "turn": self.board.turn, "move_number": move_number}
+        )
+
         # Handle move execution based on mode
         if self.config_manager.is_autoplay_enabled:
             return self._execute_auto_move(result.move, move_number, our_color)
@@ -307,6 +333,11 @@ class GameManager:
 
         self.board_handler.execute_move(move, move_number)
         self.board.push(move)
+
+        # Notify GUI of board update
+        self._notify_gui(
+            {"type": "board_update", "board": self.board, "last_move": move}
+        )
 
         return move_number + 1
 
@@ -336,6 +367,11 @@ class GameManager:
             self._current_suggestion = None
             self._arrow_drawn = False
 
+            # Notify GUI of board update
+            self._notify_gui(
+                {"type": "board_update", "board": self.board, "last_move": move}
+            )
+
             return move_number + 1
         else:
             # Just suggesting - show the move and wait
@@ -364,6 +400,17 @@ class GameManager:
             if self.board_handler.validate_and_push_move(
                 self.board, move_text, move_number, False
             ):
+                # Get the last move from board stack (it was just pushed)
+                last_move = self.board.peek() if self.board.move_stack else None
+
+                # Notify GUI of board update
+                self._notify_gui(
+                    {
+                        "type": "board_update",
+                        "board": self.board,
+                        "last_move": last_move,
+                    }
+                )
                 return move_number + 1
 
         return move_number
@@ -388,6 +435,18 @@ class GameManager:
         except Exception as e:
             logger.debug(f"Could not extract game result: {e}")
             logger.info("GAME FINISHED - Result details not available")
+
+    def set_gui_callback(self, callback):
+        """Set the GUI callback for updates"""
+        self.gui_callback = callback
+
+    def _notify_gui(self, update_data: dict):
+        """Notify GUI of updates"""
+        if self.gui_callback:
+            try:
+                self.gui_callback(update_data)
+            except Exception as e:
+                logger.error(f"GUI callback error: {e}")
 
     def cleanup(self) -> None:
         """Clean up resources with enhanced error handling"""

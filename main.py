@@ -7,7 +7,31 @@ from loguru import logger
 
 from src.config import ConfigManager
 from src.core.game import GameManager
+from src.gui.main_window import ChessBotGUI
 from src.utils.helpers import clear_screen, signal_handler
+
+
+class GUILogHandler:
+    """Custom log handler that forwards logs to GUI"""
+
+    def __init__(self):
+        self.gui = None
+
+    def set_gui(self, gui):
+        """Set the GUI instance for log forwarding"""
+        self.gui = gui
+
+    def write(self, message):
+        """Forward log messages to GUI"""
+        if self.gui and hasattr(message, "record"):
+            level = message.record["level"].name.lower()
+            text = message.record["message"]
+
+            # Forward to GUI in thread-safe manner
+            try:
+                self.gui.root.after(0, lambda: self.gui.add_log(text, level))
+            except:
+                pass  # GUI might not be ready
 
 
 def main():
@@ -23,13 +47,34 @@ def main():
         config_manager = ConfigManager()
         log_level = config_manager.log_level
 
-        # Set log level (keeps default loguru format)
+        # Create GUI log handler for dual output
+        gui_log_handler = GUILogHandler()
+
+        # Set up logging with both console and GUI output
         logger.remove()
-        logger.add(sys.stderr, level=log_level)
+        logger.add(sys.stderr, level=log_level)  # Console logging
+        logger.add(
+            gui_log_handler.write, level=log_level, colorize=False
+        )  # GUI logging
 
         # Initialize and start the game manager
         game_manager = GameManager()
-        game_manager.start()
+
+        # Initialize and setup GUI
+        gui = ChessBotGUI(game_manager)
+        gui_log_handler.set_gui(gui)
+
+        # Log mode info
+        if config_manager.is_autoplay_enabled:
+            logger.info("AutoPlay MODE: Bot will make moves automatically")
+        else:
+            move_key = config_manager.move_key
+            logger.info(
+                f"Suggestion MODE: Bot will suggest moves (press '{move_key}' to execute)"
+            )
+
+        # Start the GUI main loop (this will block)
+        gui.run()
 
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")

@@ -66,10 +66,21 @@ Built-in timing randomization with configurable delays:
 - Move execution: 0.5-2.5s
 - Engine thinking: 0.8-3.0s
 
+## 🖥️ GUI Interface
+
+The bot includes a modern GUI with console output:
+
+- **Real-time chess board** with piece positions and move visualization
+- **Engine suggestions** with arrows and move notation
+- **Live game information** (color, turn, move number)
+- **Activity log** with color-coded messages and auto-scroll
+- **Control panel** for starting/stopping the bot and manual move execution
+- **Clean, dark theme** designed for extended use
+
 ## 🎮 Operation Modes
 
 - **AutoPlay**: Fully automated gameplay
-- **Suggestion**: Manual confirmation required (press configured key)
+- **Suggestion**: Manual confirmation required (press configured key or GUI button)
 
 ## 📝 License
 

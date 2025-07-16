@@ -57,7 +57,7 @@ class StatusPanel:
             self.frame,
             textvariable=self.suggestion_var,
             font=("Arial", 12, "bold"),
-            foreground="#00aa00",
+            foreground="#48ca1a",  # Better green for dark theme
         )
 
         # Evaluation

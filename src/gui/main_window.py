@@ -58,6 +58,16 @@ class ChessBotGUI:
         # Handle window closing
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
+        # Configure window for dark theme
+        try:
+            # Try to set dark title bar on Windows 10/11
+            import platform
+
+            if platform.system() == "Windows":
+                self.root.tk.call("::tk::unsupported::DarkModeEnabled", True)
+        except:
+            pass  # Ignore if not supported
+
     def _create_widgets(self):
         """Create all GUI widgets"""
         # Main frame
@@ -92,6 +102,11 @@ class ChessBotGUI:
             fg="#ffffff",
             font=("Consolas", 9),
             state=tk.DISABLED,
+            insertbackground="#ffffff",  # Cursor color
+            selectbackground="#404040",  # Selection background
+            selectforeground="#ffffff",  # Selection text color
+            borderwidth=1,
+            relief="solid",
         )
 
         # Bottom status bar
@@ -140,15 +155,110 @@ class ChessBotGUI:
         # Configure dark theme
         style.theme_use("clam")
 
-        # Custom colors
-        bg_color = "#2b2b2b"
-        fg_color = "#ffffff"
-        select_color = "#404040"
+        # Dark theme color palette
+        bg_dark = "#2b2b2b"  # Main background
+        bg_darker = "#1e1e1e"  # Darker background for panels
+        bg_lighter = "#404040"  # Lighter background for selections
+        fg_primary = "#ffffff"  # Primary text color
+        fg_secondary = "#cccccc"  # Secondary text color
+        fg_muted = "#888888"  # Muted text color
+        accent_color = "#0078d4"  # Accent color
+        border_color = "#555555"  # Border color
 
-        style.configure("TFrame", background=bg_color)
-        style.configure("TLabel", background=bg_color, foreground=fg_color)
-        style.configure("TLabelFrame", background=bg_color, foreground=fg_color)
-        style.configure("TLabelFrame.Label", background=bg_color, foreground=fg_color)
+        # Configure ttk styles
+        style.configure("TFrame", background=bg_dark, borderwidth=0)
+        style.configure("TLabel", background=bg_dark, foreground=fg_primary)
+        style.configure(
+            "TLabelFrame",
+            background=bg_dark,
+            foreground=fg_primary,
+            borderwidth=1,
+            relief="solid",
+        )
+        style.configure(
+            "TLabelFrame.Label",
+            background=bg_dark,
+            foreground=fg_primary,
+            font=("Arial", 10, "bold"),
+        )
+
+        # Button styles
+        style.configure(
+            "TButton",
+            background=bg_lighter,
+            foreground=fg_primary,
+            borderwidth=1,
+            focuscolor="none",
+        )
+        style.map(
+            "TButton", background=[("active", accent_color), ("pressed", bg_darker)]
+        )
+
+        # Entry styles
+        style.configure(
+            "TEntry",
+            background=bg_darker,
+            foreground=fg_primary,
+            insertcolor=fg_primary,
+            borderwidth=1,
+            relief="solid",
+        )
+        style.map(
+            "TEntry", focuscolor=[("!focus", border_color), ("focus", accent_color)]
+        )
+
+        # Scrollbar styles
+        style.configure(
+            "TScrollbar",
+            background=bg_lighter,
+            troughcolor=bg_darker,
+            borderwidth=1,
+            arrowcolor=fg_primary,
+        )
+        style.map("TScrollbar", background=[("active", accent_color)])
+
+        # Separator styles
+        style.configure("TSeparator", background=border_color)
+
+        # Notebook styles (if used)
+        style.configure("TNotebook", background=bg_dark, borderwidth=0)
+        style.configure(
+            "TNotebook.Tab",
+            background=bg_lighter,
+            foreground=fg_primary,
+            padding=[10, 5],
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", bg_dark), ("active", accent_color)],
+        )
+
+        # Configure console text colors
+        self._setup_console_colors()
+
+        # Apply dark theme to console scrollbar
+        try:
+            # Get the scrollbar from the ScrolledText widget
+            scrollbar = self.console_text.vbar
+            scrollbar.configure(
+                bg="#404040",  # Background
+                troughcolor="#1e1e1e",  # Trough color
+                activebackground="#0078d4",  # Active background
+                highlightthickness=0,  # Remove highlight
+            )
+        except:
+            pass  # Ignore if scrollbar customization fails
+
+    def _setup_console_colors(self):
+        """Setup color tags for console text"""
+        # Define color tags for different log levels
+        self.console_text.tag_configure("ERROR", foreground="#ff6b6b")  # Red
+        self.console_text.tag_configure("WARNING", foreground="#feca57")  # Yellow
+        self.console_text.tag_configure("SUCCESS", foreground="#48ca1a")  # Green
+        self.console_text.tag_configure("INFO", foreground="#54a0ff")  # Blue
+        self.console_text.tag_configure("DEBUG", foreground="#a8a8a8")  # Gray
+        self.console_text.tag_configure("TRACE", foreground="#888888")  # Darker Gray
+        self.console_text.tag_configure("DEFAULT", foreground="#ffffff")  # White
 
     def _start_update_loop(self):
         """Start the GUI update loop"""
@@ -217,20 +327,8 @@ class ChessBotGUI:
         """Add text to console output"""
         self.console_text.config(state=tk.NORMAL)
 
-        # Color coding for different log levels
-        if level == "ERROR":
-            color = "#ff6b6b"
-        elif level == "WARNING":
-            color = "#feca57"
-        elif level == "SUCCESS":
-            color = "#48ca1a"
-        elif level == "INFO":
-            color = "#54a0ff"
-        else:
-            color = "#ffffff"
-
-        # Insert text with color
-        self.console_text.insert(tk.END, f"[{level}] {text}\n")
+        # Apply color tags
+        self.console_text.insert(tk.END, f"[{level}] {text}\n", level)
         self.console_text.see(tk.END)
         self.console_text.config(state=tk.DISABLED)
 

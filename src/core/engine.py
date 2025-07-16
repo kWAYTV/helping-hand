@@ -79,12 +79,24 @@ class ChessEngine:
 
         logger.debug(f"Calculating best move (depth: {depth})")
 
+        # Get both move and evaluation
         result = self.engine.play(
             board,
             chess.engine.Limit(depth=depth),
             game=object,
-            info=chess.engine.INFO_NONE,
+            info=chess.engine.INFO_ALL,  # Request all info including evaluation
         )
+
+        # Get detailed analysis for evaluation
+        analysis = self.engine.analyse(
+            board, chess.engine.Limit(depth=depth), info=chess.engine.INFO_ALL
+        )
+
+        # Add evaluation to result
+        if hasattr(result, "info"):
+            result.info.update(analysis)
+        else:
+            result.info = analysis
 
         logger.debug(f"Engine suggests: {result.move}")
         return result

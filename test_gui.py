@@ -1,30 +1,53 @@
-"""Test script to verify GUI loads correctly"""
+"""
+Test GUI layout and responsiveness
+"""
 
-import sys
-
-sys.path.append(".")
+import tkinter as tk
 
 import chess
 
 from src.gui.main_window import ChessBotGUI
 
-# Create a simple test
-gui = ChessBotGUI()
 
-# Test with some dummy data
-gui.update_board(chess.Board())
-gui.update_game_info(
-    {"our_color": "white", "turn": True, "move_number": 1, "game_active": True}
-)
+def test_move_history():
+    """Test the move history functionality"""
+    gui = ChessBotGUI()
 
-# Show a test suggestion
-test_move = chess.Move.from_uci("e2e4")
-gui.update_suggestion(test_move, {"depth": 5})
+    # Add some test moves
+    test_moves = [
+        (chess.Move.from_uci("e2e4"), 1, True),  # White's first move
+        (chess.Move.from_uci("e7e5"), 2, False),  # Black's response
+        (chess.Move.from_uci("g1f3"), 3, True),  # White's second move
+        (chess.Move.from_uci("b8c6"), 4, False),  # Black's second move
+        (chess.Move.from_uci("f1c4"), 5, True),  # White's third move
+    ]
 
-gui.add_log("Test GUI loaded successfully!", "success")
-gui.add_log("Testing different log levels:", "info")
-gui.add_log("This is a warning", "warning")
-gui.add_log("This is an error", "error")
+    # Add moves with slight delay to see them appear
+    def add_move(index):
+        if index < len(test_moves):
+            move, move_num, is_white = test_moves[index]
+            gui.add_move_to_history(move, move_num, is_white)
+            print(f"Added move {move_num}: {move} ({'White' if is_white else 'Black'})")
+            # Schedule next move
+            gui.root.after(1000, lambda: add_move(index + 1))
 
-print("GUI test loaded. Close the window to exit.")
-gui.run()
+    # Start adding moves after 2 seconds
+    gui.root.after(2000, lambda: add_move(0))
+
+    # Test suggestion
+    gui.root.after(
+        3000,
+        lambda: gui.update_suggestion(
+            chess.Move.from_uci("d2d3"),
+            {
+                "depth": 15,
+                "score": chess.engine.PovScore(chess.engine.Cp(50), chess.WHITE),
+            },
+        ),
+    )
+
+    gui.run()
+
+
+if __name__ == "__main__":
+    test_move_history()

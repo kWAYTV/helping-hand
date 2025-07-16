@@ -165,15 +165,22 @@ class GameInfoWidget(tk.Frame):
 
             # Update evaluation if provided
             if evaluation:
-                if "score" in evaluation:
+                if "score" in evaluation and evaluation["score"]:
                     score = evaluation["score"]
-                    if hasattr(score, "relative"):
+                    if hasattr(score, "relative") and score.relative is not None:
                         score_val = score.relative.score(mate_score=10000) / 100.0
+                        self.evaluation_label.configure(
+                            text=f"Evaluation: {score_val:+.2f}"
+                        )
+                    elif hasattr(score, "white") and score.white is not None:
+                        score_val = score.white().score(mate_score=10000) / 100.0
                         self.evaluation_label.configure(
                             text=f"Evaluation: {score_val:+.2f}"
                         )
                     else:
                         self.evaluation_label.configure(text="Evaluation: N/A")
+                else:
+                    self.evaluation_label.configure(text="Evaluation: N/A")
 
                 if "depth" in evaluation:
                     depth = evaluation["depth"]

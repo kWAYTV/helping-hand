@@ -11,6 +11,7 @@ from loguru import logger
 from .widgets.chess_board import ChessBoardWidget
 from .widgets.game_info import GameInfoWidget
 from .widgets.log_panel import LogPanelWidget
+from .widgets.move_history import MoveHistoryWidget
 
 
 class ChessBotGUI:
@@ -59,20 +60,25 @@ class ChessBotGUI:
         self.chess_board = ChessBoardWidget(board_frame)
         self.chess_board.grid(row=0, column=0, sticky="nsew")
 
-        # Right side - Info and logs
+        # Right side - Info, move history, and logs
         right_frame = tk.Frame(self.root, bg="#2B2B2B")
         right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         right_frame.grid_columnconfigure(0, weight=1)
         right_frame.grid_rowconfigure(0, weight=0)  # Game info - fixed height
-        right_frame.grid_rowconfigure(1, weight=1)  # Log panel - expandable
+        right_frame.grid_rowconfigure(1, weight=1)  # Move history - expandable
+        right_frame.grid_rowconfigure(2, weight=1)  # Log panel - expandable
 
         # Game info panel
         self.game_info = GameInfoWidget(right_frame)
-        self.game_info.grid(row=0, column=0, pady=(0, 10), sticky="ew")
+        self.game_info.grid(row=0, column=0, pady=(0, 5), sticky="ew")
+
+        # Move history panel
+        self.move_history = MoveHistoryWidget(right_frame)
+        self.move_history.grid(row=1, column=0, pady=(0, 5), sticky="nsew")
 
         # Log panel
         self.log_panel = LogPanelWidget(right_frame)
-        self.log_panel.grid(row=1, column=0, sticky="nsew")
+        self.log_panel.grid(row=2, column=0, sticky="nsew")
 
     def _setup_callbacks(self):
         """Setup callbacks between components"""
@@ -119,6 +125,16 @@ class ChessBotGUI:
             elif update_type == "game_info":
                 self.update_game_info(update_data)
 
+            elif update_type == "move_played":
+                self.add_move_to_history(
+                    update_data.get("move"),
+                    update_data.get("move_number"),
+                    update_data.get("is_white"),
+                )
+
+            elif update_type == "game_start":
+                self.move_history.clear_history()
+
             elif update_type == "log":
                 self.log_panel.add_log(
                     update_data.get("message", ""), update_data.get("level", "info")
@@ -159,6 +175,11 @@ class ChessBotGUI:
     def add_log(self, message: str, level: str = "info"):
         """Add a log message to the log panel"""
         self.log_panel.add_log(message, level)
+
+    def add_move_to_history(self, move: chess.Move, move_number: int, is_white: bool):
+        """Add a move to the move history"""
+        if move:
+            self.move_history.add_move(move, move_number, is_white)
 
     def run(self):
         """Start the GUI main loop"""

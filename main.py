@@ -23,15 +23,23 @@ class GUILogHandler:
 
     def write(self, message):
         """Forward log messages to GUI"""
-        if self.gui and hasattr(message, "record"):
-            level = message.record["level"].name.lower()
-            text = message.record["message"]
+        try:
+            if self.gui and hasattr(message, "record"):
+                level = message.record["level"].name.lower()
+                text = message.record["message"]
 
-            # Forward to GUI in thread-safe manner
-            try:
-                self.gui.root.after(0, lambda: self.gui.add_log(text, level))
-            except:
-                pass  # GUI might not be ready
+                # Forward to GUI in thread-safe manner
+                if hasattr(self.gui, "root") and self.gui.root:
+                    self.gui.root.after(0, lambda: self.gui.add_log(text, level))
+        except Exception:
+            pass  # Silently handle any GUI errors
+
+        # Return empty string to satisfy loguru's expectations
+        return ""
+
+    def flush(self):
+        """Required method for file-like objects"""
+        pass
 
 
 def main():
@@ -53,9 +61,16 @@ def main():
         # Set up logging with both console and GUI output
         logger.remove()
         logger.add(sys.stderr, level=log_level)  # Console logging
-        logger.add(
-            gui_log_handler.write, level=log_level, colorize=False
-        )  # GUI logging
+
+        # Add GUI logging with error handling for PyInstaller compatibility
+        try:
+            logger.add(
+                gui_log_handler.write, level=log_level, colorize=False
+            )  # GUI logging
+        except Exception as e:
+            # Fallback to console-only logging if GUI handler fails
+            logger.warning(f"Could not set up GUI logging: {e}")
+            logger.info("Continuing with console-only logging")
 
         # Initialize and start the game manager
         game_manager = GameManager()

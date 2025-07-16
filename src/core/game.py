@@ -414,7 +414,7 @@ class GameManager:
     def _is_our_turn(self, our_color: str) -> bool:
         """Check if it's our turn to move"""
         # First check the interface state for more accurate detection
-        interface_turn = self.board_handler.is_our_turn_via_interface()
+        interface_turn = self.board_handler.is_our_turn_via_interface(our_color)
 
         if interface_turn is not None:
             # Interface gives us a definitive answer
@@ -425,14 +425,14 @@ class GameManager:
             if interface_turn != board_turn:
                 # Interface and board state disagree - interface is more reliable
                 logger.debug(
-                    f"Turn state mismatch: interface says {'our' if interface_turn else 'opponent'} turn, board says {'our' if board_turn else 'opponent'} turn"
+                    f"Turn state mismatch: interface says {'our' if interface_turn else 'opponent'} turn, board says {'our' if board_turn else 'opponent'} turn (we are {our_color})"
                 )
                 logger.debug("Using interface state (more reliable)")
                 return interface_turn
             else:
                 # Both agree - good synchronization
                 logger.debug(
-                    f"Turn state synchronized: {'our' if interface_turn else 'opponent'} turn"
+                    f"Turn state synchronized: {'our' if interface_turn else 'opponent'} turn (we are {our_color})"
                 )
                 return interface_turn
 
@@ -441,12 +441,20 @@ class GameManager:
             not self.board.turn and our_color == "B"
         )
         logger.debug(
-            f"Using board state for turn detection: {'our' if board_turn else 'opponent'} turn"
+            f"Using board state for turn detection: {'our' if board_turn else 'opponent'} turn (we are {our_color}, board.turn={self.board.turn})"
         )
         return board_turn
 
     def _handle_our_turn(self, move_number: int, our_color: str) -> int:
         """Handle our turn logic"""
+        # Double-check it's actually our turn before proceeding
+        double_check_turn = self.board_handler.is_our_turn_via_interface(our_color)
+        if double_check_turn is False:
+            logger.warning(
+                "_handle_our_turn called but interface indicates it's opponent's turn - aborting"
+            )
+            return move_number
+
         # Reset move timer when it becomes our turn
         if self.gui and self.gui.is_gui_running():
             self.gui.reset_move_timer()
@@ -480,6 +488,14 @@ class GameManager:
                 return move_number
 
         # === MOVE CALCULATION ===
+        # Final safety check before calculating move
+        final_turn_check = self.board_handler.is_our_turn_via_interface(our_color)
+        if final_turn_check is False:
+            logger.warning(
+                "Aborting move calculation - interface indicates it's opponent's turn"
+            )
+            return move_number
+
         engine_depth = self.config_manager.get(
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
@@ -611,6 +627,14 @@ class GameManager:
 
     def _handle_opponent_turn(self, move_number: int, our_color: str) -> int:
         """Handle opponent's turn"""
+        # Double-check it's actually opponent's turn
+        double_check_turn = self.board_handler.is_our_turn_via_interface(our_color)
+        if double_check_turn is True:
+            logger.warning(
+                "_handle_opponent_turn called but interface indicates it's our turn"
+            )
+            # Don't return early here, let it continue to clear suggestions just in case
+
         self.board_handler.clear_arrow()
 
         # Clear any GUI suggestions when it's opponent's turn

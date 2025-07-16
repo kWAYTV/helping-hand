@@ -195,32 +195,62 @@ class BrowserManager:
             return False
 
         try:
-            # Look for user menu or account indicator
+            # Check for login page indicators first (negative check)
+            login_indicators = [
+                'class="auth auth-login"',  # Login page class
+                "Sign in</h1>",  # Login page heading
+                'name="username"',  # Username input field
+                'name="password"',  # Password input field
+                "/login",  # Login URL
+            ]
+
+            page_source = self.driver.page_source
+            for indicator in login_indicators:
+                if indicator in page_source:
+                    logger.debug(f"Detected login page via: {indicator}")
+                    return False
+
+            # Look for definitive logged-in indicators
             user_indicators = [
                 "#user_tag",  # User menu
                 ".site-title .user",  # Username in header
                 "[data-icon='H']",  # User icon
-                ".dasher .toggle",  # Dasher menu
+                "a[href*='/logout']",  # Logout link
+                ".account",  # Account menu
+                "#user_status",  # User status indicator
             ]
 
             for selector in user_indicators:
                 try:
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    if element and element.text.strip():
-                        logger.debug(f"Authentication confirmed via: {selector}")
-                        return True
+                    if element and element.is_displayed():
+                        # Additional check for logout link to be sure
+                        if "logout" in selector:
+                            logger.debug(
+                                f"Authentication confirmed via logout link: {selector}"
+                            )
+                            return True
+                        elif element.text.strip():
+                            logger.debug(f"Authentication confirmed via: {selector}")
+                            return True
                 except:
                     continue
 
-            # Check page source for login indicators
-            page_source = self.driver.page_source.lower()
-            if any(
-                indicator in page_source
-                for indicator in ["logout", "preferences", "profile"]
-            ):
-                logger.debug("Authentication confirmed via page content")
-                return True
+            # Check for specific logged-in content patterns
+            page_source_lower = page_source.lower()
+            logged_in_patterns = [
+                'href="/logout"',  # Actual logout link
+                'href="/account"',  # Account page link
+                'class="user"',  # User class elements
+                "data-user=",  # User data attributes
+            ]
 
+            for pattern in logged_in_patterns:
+                if pattern in page_source_lower:
+                    logger.debug(f"Authentication confirmed via pattern: {pattern}")
+                    return True
+
+            logger.debug("No authentication indicators found")
             return False
 
         except Exception as e:

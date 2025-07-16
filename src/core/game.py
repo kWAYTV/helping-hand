@@ -145,7 +145,7 @@ class GameManager:
                 self.gui.set_activity_status("Connecting to Lichess...")
 
             try:
-                self.browser_manager.navigate_to("https://www.lichess.org")
+                self.browser_manager.navigate_to("https://lichess.org/login")
                 if self.gui and self.gui.is_gui_running():
                     self.gui.set_connection_status(True, "lichess.org")
             except Exception as e:

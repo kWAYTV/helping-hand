@@ -28,7 +28,9 @@ class BrowserManager:
     def __init__(self):
         if not self._initialized:
             self.driver: Optional[webdriver.Firefox] = None
-            self.cookies_file = os.path.join("deps", "lichess_cookies.json")
+            self.cookies_file = (
+                "lichess_session.json"  # Save in root directory with config files
+            )
             self._setup_driver()
             BrowserManager._initialized = True
 

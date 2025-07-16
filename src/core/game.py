@@ -183,6 +183,8 @@ class GameManager:
                         self.gui.set_connection_status(True, "Already logged in")
                 elif self.lichess_auth.sign_in():
                     logger.success("Authentication successful")
+                    # Save session immediately after successful authentication
+                    self.browser_manager.save_cookies()
                     if self.gui and self.gui.is_gui_running():
                         self.gui.set_connection_status(True, "Authenticated")
                 else:

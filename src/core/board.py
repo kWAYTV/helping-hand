@@ -34,21 +34,22 @@ class BoardHandler:
 
     def wait_for_game_ready(self) -> bool:
         """Wait for game to be ready and return True if successful"""
-        logger.debug("Waiting for game setup")
+        # === GAME INTERFACE DETECTION ===
+        logger.debug("Waiting for game interface to load")
 
         # Wait for follow-up to disappear
         while self.browser_manager.check_exists_by_class("follow-up"):
-            logger.debug("Found follow-up element, waiting for user action...")
+            logger.debug("Found follow-up dialog - waiting for user action")
             sleep(1)
 
-        logger.debug("No follow-up found, waiting for game interface")
+        logger.debug("Game interface loading")
 
         try:
             # Wait for board first (this appears quickly)
             WebDriverWait(self.driver, 30).until(
                 ec.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
             )
-            logger.debug("Board found")
+            logger.debug("Chess board detected")
 
             # Try multiple selectors for move input box (more flexible)
             move_input_selectors = [
@@ -66,7 +67,7 @@ class BoardHandler:
                         ec.presence_of_element_located((selector_type, selector_value))
                     )
                     logger.debug(
-                        f"Move input found using {selector_type}: {selector_value}"
+                        f"Move input detected using {selector_type}: {selector_value}"
                     )
                     move_input_found = True
                     break
@@ -75,17 +76,17 @@ class BoardHandler:
 
             if not move_input_found:
                 # Try a longer wait for the most reliable selector
-                logger.debug("Trying longer wait for move input...")
+                logger.debug("Extending wait for move input")
                 WebDriverWait(self.driver, 30).until(
                     ec.presence_of_element_located((By.CLASS_NAME, "ready"))
                 )
-                logger.debug("Move input found after extended wait")
+                logger.debug("Move input detected after extended wait")
 
-            logger.debug("Game interface ready")
+            logger.info("Game interface ready")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to wait for game ready: {e}")
+            logger.error(f"Failed to wait for game interface: {e}")
             return False
 
     def determine_player_color(self) -> str:
@@ -95,10 +96,10 @@ class BoardHandler:
         )
 
         if board_set_for_white:
-            logger.info("Playing as WHITE")
+            logger.info("Playing as White")
             return "W"
         else:
-            logger.info("Playing as BLACK")
+            logger.info("Playing as Black")
             return "B"
 
     @element_retry(max_retries=3, delay=1.0)
@@ -118,9 +119,7 @@ class BoardHandler:
                     ec.presence_of_element_located((selector_type, selector_value))
                 )
                 element = self.driver.find_element(selector_type, selector_value)
-                logger.debug(
-                    f"Move input handle found using {selector_type}: {selector_value}"
-                )
+                logger.debug(f"Move input located using {selector_type}")
                 return element
             except Exception:
                 continue
@@ -134,15 +133,13 @@ class BoardHandler:
             # Return the first visible input element
             for element in elements:
                 if element.is_displayed():
-                    logger.debug(
-                        "Move input handle found using fallback input selector"
-                    )
+                    logger.debug("Move input located using fallback method")
                     return element
         except Exception as e:
-            logger.error(f"Failed to find move input handle: {e}")
+            logger.error(f"Failed to locate move input: {e}")
             return None
 
-        logger.error("Could not find move input handle with any selector")
+        logger.error("Could not locate move input with any method")
         return None
 
     @move_retry(max_retries=3, delay=0.5)
@@ -156,7 +153,7 @@ class BoardHandler:
                 move_text = element.text.strip()
                 if move_text:  # Only return if there's actual text
                     logger.debug(
-                        f"Found move {move_number}: '{move_text}' by class index"
+                        f"Found move {move_number}: '{move_text}' via class index"
                     )
                     return element
         except:
@@ -174,9 +171,7 @@ class BoardHandler:
                 element = self.driver.find_element(By.XPATH, selector)
                 move_text = element.text.strip()
                 if move_text:  # Only return if there's actual text
-                    logger.debug(
-                        f"Found move {move_number}: '{move_text}' using {selector}"
-                    )
+                    logger.debug(f"Found move {move_number}: '{move_text}' via XPath")
                     return element
             except:
                 continue
@@ -185,15 +180,14 @@ class BoardHandler:
 
     def get_previous_moves(self, board: chess.Board) -> int:
         """Get all previous moves and update board, return current move number"""
-        logger.debug("Getting previous moves from board")
+        # === BOARD SYNCHRONIZATION ===
+        logger.debug("Synchronizing board state with current game")
         temp_move_number = 1
 
         # First check if there are ANY moves at all
         first_move = self.find_move_by_alternatives(1)
         if not first_move:
-            logger.debug(
-                "No moves found on board - this appears to be the start of the game"
-            )
+            logger.debug("No moves detected - starting fresh game")
             return 1  # Start from move 1
 
         while temp_move_number < 999:  # Safety limit
@@ -207,7 +201,7 @@ class BoardHandler:
                     temp_move_number += 1
                     continue
 
-                logger.debug(f"Found previous move {temp_move_number}: {move_text}")
+                logger.debug(f"Processing move {temp_move_number}: {move_text}")
                 try:
                     board.push_san(move_text)
                     temp_move_number += 1
@@ -219,16 +213,16 @@ class BoardHandler:
                     break
             else:
                 logger.debug(
-                    f"No more previous moves found. Total moves processed: {temp_move_number - 1}"
+                    f"Board synchronization complete - processed {temp_move_number - 1} moves"
                 )
                 # Only save debug info if we have moves but can't parse them
                 if temp_move_number == 1:
-                    logger.debug("No moves on board - starting fresh game")
+                    logger.debug("Fresh game confirmed - no moves on board")
                 elif (
                     temp_move_number <= 3
                 ):  # If we can't find early moves (might be selector issue)
                     logger.warning(
-                        "Could not find expected moves, investigating selectors"
+                        "Could not locate expected moves - investigating selectors"
                     )
                     self.debug_utils.debug_move_list_structure(self.driver)
                     self.debug_utils.save_debug_info(
@@ -263,10 +257,12 @@ class BoardHandler:
             if test_move in board.legal_moves:
                 uci = board.push_san(move_text)
                 move_desc = "us" if is_our_move else "opponent"
-                logger.success(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
+                logger.success(
+                    f"Move {ceil(move_number / 2)}: {uci.uci()} [{move_desc}]"
+                )
                 return True
             else:
-                logger.warning(f"Move '{move_text}' is not legal in current position")
+                logger.warning(f"Illegal move attempted: '{move_text}'")
                 self.debug_utils.save_debug_info(self.driver, move_number, board)
                 return False
         except Exception as e:
@@ -330,9 +326,7 @@ class BoardHandler:
         move_str = str(move)
         src_square = move_str[:2]
         dst_square = move_str[2:]
-        logger.debug(
-            f"Drawing move arrow: {src_square} → {dst_square} (green circle = source, gold circle = destination)"
-        )
+        logger.debug(f"Drawing move arrow: {src_square} → {dst_square}")
 
         transform = self._get_piece_transform(move, our_color)
 

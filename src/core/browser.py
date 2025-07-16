@@ -34,6 +34,7 @@ class BrowserManager:
     def _setup_driver(self) -> None:
         """Initialize Firefox WebDriver with options"""
         try:
+            # === BROWSER INITIALIZATION ===
             webdriver_options = webdriver.FirefoxOptions()
             webdriver_options.add_argument(
                 f'--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"'
@@ -50,7 +51,7 @@ class BrowserManager:
             # Install Firefox extensions
             install_firefox_extensions(self.driver)
 
-            logger.debug("Firefox WebDriver initialized successfully")
+            logger.info("Firefox WebDriver initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")
             raise
@@ -114,14 +115,14 @@ class BrowserManager:
                 cookies = self.driver.get_cookies()
                 with open(self.cookies_file, "w") as f:
                     json.dump(cookies, f, indent=2)
-                logger.debug(f"Saved {len(cookies)} cookies to {self.cookies_file}")
+                logger.debug(f"Saved authentication session ({len(cookies)} cookies)")
             except Exception as e:
                 logger.error(f"Failed to save cookies: {e}")
 
     def load_cookies(self) -> bool:
         """Load cookies from file and apply them"""
         if not os.path.exists(self.cookies_file):
-            logger.info("No saved cookies found")
+            logger.debug("No saved authentication session found")
             return False
 
         try:
@@ -138,7 +139,7 @@ class BrowserManager:
                             f"Failed to add cookie {cookie.get('name', 'unknown')}: {e}"
                         )
 
-                logger.debug(f"Loaded {len(cookies)} cookies")
+                logger.debug(f"Loaded authentication session ({len(cookies)} cookies)")
                 return True
             else:
                 logger.debug("Cannot load cookies - not on Lichess domain")
@@ -154,12 +155,12 @@ class BrowserManager:
             # Clear browser cookies
             if self.driver:
                 self.driver.delete_all_cookies()
-                logger.debug("Cleared browser cookies")
+                logger.debug("Cleared browser session")
 
             # Clear saved cookies file
             if os.path.exists(self.cookies_file):
                 os.remove(self.cookies_file)
-                logger.debug("Cleared saved cookies file")
+                logger.debug("Cleared saved session file")
         except Exception as e:
             logger.error(f"Failed to clear cookies: {e}")
 
@@ -201,7 +202,7 @@ class BrowserManager:
                 try:
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     if element and element.text.strip():
-                        logger.debug(f"Login detected via selector: {selector}")
+                        logger.debug(f"Authentication confirmed via: {selector}")
                         return True
                 except:
                     continue
@@ -212,18 +213,18 @@ class BrowserManager:
                 indicator in page_source
                 for indicator in ["logout", "preferences", "profile"]
             ):
-                logger.debug("Login detected via page source")
+                logger.debug("Authentication confirmed via page content")
                 return True
 
             return False
 
         except Exception as e:
-            logger.debug(f"Error checking login status: {e}")
+            logger.debug(f"Error checking authentication status: {e}")
             return False
 
     def close(self) -> None:
         """Close the browser"""
         if self.driver:
-            logger.info("Closing browser, press Ctrl+C to force quit")
+            logger.info("Closing browser (press Ctrl+C to force quit)")
             self.driver.quit()
             self.driver = None

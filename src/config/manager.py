@@ -31,9 +31,9 @@ class ConfigManager:
         """Load existing config or create default one"""
         if os.path.isfile(self._config_path):
             self.config.read(self._config_path)
-            logger.debug("Loaded existing config.ini")
+            logger.debug("Configuration loaded from config.ini")
         else:
-            logger.debug("No config.ini found, creating default config")
+            logger.debug("Configuration file not found - creating defaults")
             self._create_default_config()
             self.config.read(self._config_path)
 
@@ -55,6 +55,7 @@ class ConfigManager:
             "arrow": "true",
             "auto-play": "true",
             "log-level": "INFO",
+            "gui-enabled": "true",
         }
         self.config["humanization"] = {
             "min-delay": "0.3",
@@ -73,7 +74,7 @@ class ConfigManager:
         try:
             return self.config[section].get(key, fallback)
         except KeyError:
-            logger.warning(f"Section '{section}' not found in config")
+            logger.warning(f"Configuration section '{section}' not found")
             return fallback
 
     def get_section(self, section: str) -> Dict[str, str]:
@@ -81,7 +82,7 @@ class ConfigManager:
         try:
             return dict(self.config[section])
         except KeyError:
-            logger.warning(f"Section '{section}' not found in config")
+            logger.warning(f"Configuration section '{section}' not found")
             return {}
 
     def set(self, section: str, key: str, value: str) -> None:
@@ -157,7 +158,7 @@ class ConfigManager:
             "CRITICAL",
         ]
         if level not in valid_levels:
-            logger.warning(f"Invalid log level '{level}', using INFO")
+            logger.warning(f"Invalid log level '{level}' - using INFO")
             return "INFO"
         return level
 
@@ -179,3 +180,9 @@ class ConfigManager:
             max_delay = float(config.get("max-delay", "1.8"))
 
         return min_delay, max_delay
+
+    @property
+    def is_gui_enabled(self) -> bool:
+        """Check if GUI is enabled"""
+        value = self.get("general", "gui-enabled", "true")
+        return value.lower() == "true"

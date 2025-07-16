@@ -1,6 +1,6 @@
 # Lichess Chess Bot
 
-Professional automated chess bot for Lichess.org with Stockfish engine integration and advanced humanization.
+Professional automated chess bot for Lichess.org with Stockfish engine integration, advanced humanization and a visual GUI.
 
 ## 📦 Releases
 
@@ -56,6 +56,7 @@ skill-level = 14   # 0-20 engine strength
 auto-play = true   # false for manual confirmation
 move-key = end     # Key to execute moves manually
 log-level = INFO   # TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR
+gui-enabled = true
 ```
 
 ### Humanization

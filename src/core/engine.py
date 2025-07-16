@@ -21,17 +21,18 @@ class ChessEngine:
     def _initialize_engine(self) -> None:
         """Initialize the chess engine"""
         try:
+            # === ENGINE STARTUP ===
             engine_config = self.config_manager.engine_config
             # Use standardized lowercase keys with backward compatibility
             engine_path = engine_config.get("path", engine_config.get("Path", ""))
 
             if not engine_path:
-                raise ValueError("Engine path not found in config")
+                raise ValueError("Engine path not configured")
 
             self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
-            logger.debug(f"Started chess engine: {engine_path}")
+            logger.info(f"Stockfish engine initialized: {engine_path}")
 
-            # Configure engine options using standardized hyphenated keys
+            # === ENGINE CONFIGURATION ===
             skill_level = int(
                 engine_config.get(
                     "skill-level",
@@ -49,11 +50,11 @@ class ChessEngine:
 
             self.engine.configure(options)
             logger.debug(
-                f"Engine configured - Skill: {options['Skill Level']}, Hash: {options['Hash']}"
+                f"Engine configured - Skill Level: {skill_level}, Hash: {hash_size}MB"
             )
 
         except Exception as e:
-            logger.error(f"Failed to start chess engine: {e}")
+            logger.error(f"Failed to initialize Stockfish engine: {e}")
             raise
 
     @retry_on_exception(
@@ -66,7 +67,7 @@ class ChessEngine:
     ) -> chess.engine.PlayResult:
         """Get the best move for the current position"""
         if not self.engine:
-            logger.warning("Engine not initialized, attempting to reinitialize")
+            logger.warning("Engine not initialized - attempting restart")
             self._initialize_engine()
 
         if depth is None:
@@ -77,7 +78,7 @@ class ChessEngine:
                 )
             )
 
-        logger.debug(f"Calculating best move (depth: {depth})")
+        logger.debug(f"Analyzing position (depth: {depth})")
 
         result = self.engine.play(
             board,
@@ -86,7 +87,7 @@ class ChessEngine:
             info=chess.engine.INFO_NONE,
         )
 
-        logger.debug(f"Engine suggests: {result.move}")
+        logger.debug(f"Best move calculated: {result.move}")
         return result
 
     @retry_on_exception(
@@ -99,9 +100,10 @@ class ChessEngine:
     ) -> Dict[str, Any]:
         """Analyze the current position"""
         if not self.engine:
-            logger.warning("Engine not initialized, attempting to reinitialize")
+            logger.warning("Engine not initialized - attempting restart")
             self._initialize_engine()
 
+        logger.debug(f"Running position analysis (time limit: {time_limit}s)")
         info = self.engine.analyse(board, chess.engine.Limit(time=time_limit))
 
         return info
@@ -113,6 +115,6 @@ class ChessEngine:
     def quit(self) -> None:
         """Stop the chess engine"""
         if self.engine:
-            logger.debug("Stopping chess engine")
+            logger.debug("Shutting down chess engine")
             safe_execute(self.engine.quit, log_errors=True)
             self.engine = None

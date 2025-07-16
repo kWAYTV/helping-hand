@@ -40,9 +40,9 @@ def install_firefox_extensions(driver):
     if os.path.exists(extension_path):
         try:
             driver.install_addon(extension_path)
-            logger.debug(f"Successfully installed extension: {extension_path}")
+            logger.debug(f"Browser extension installed: {extension_path}")
         except Exception as e:
-            logger.warning(f"Failed to install extension {extension_path}: {e}")
+            logger.warning(f"Failed to install browser extension {extension_path}: {e}")
 
 
 def humanized_delay(
@@ -76,7 +76,7 @@ def humanized_delay(
     # Ensure minimum delay of 0.1s
     final_delay = max(0.1, final_delay)
 
-    logger.debug(f"Delaying {action} for {final_delay:.2f}s")
+    logger.debug(f"Humanized delay: {final_delay:.2f}s ({action})")
 
     sleep(final_delay)
 
@@ -102,7 +102,7 @@ def advanced_humanized_delay(
     # Occasional longer pauses (10% chance)
     if random.random() < 0.1:
         pause_bonus = random.uniform(0.5, 1.5)
-        logger.debug(f"Adding thinking pause: {pause_bonus:.2f}s")
+        logger.debug(f"Adding extended thinking pause: {pause_bonus:.2f}s")
     else:
         pause_bonus = 0
 
@@ -113,7 +113,7 @@ def advanced_humanized_delay(
     final_delay = base_delay + jitter_1 + jitter_2 + pause_bonus + micro_hesitation
     final_delay = max(0.1, final_delay)
 
-    logger.debug(f"Delaying {action} (advanced) for {final_delay:.2f}s")
+    logger.debug(f"Advanced humanized delay: {final_delay:.2f}s ({action})")
 
     sleep(final_delay)
 
@@ -125,7 +125,7 @@ def clear_screen() -> None:
 
 def signal_handler(sig, frame):
     """Handle graceful shutdown"""
-    logger.info("Received interrupt signal, shutting down...")
+    logger.info("Shutdown signal received - terminating application")
     sys.exit(0)
 
 

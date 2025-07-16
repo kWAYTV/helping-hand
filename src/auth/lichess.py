@@ -20,6 +20,7 @@ class LichessAuth:
     def sign_in(self) -> bool:
         """Sign in to Lichess"""
         try:
+            # === AUTHENTICATION PROCESS ===
             # First try loading saved cookies
             if self._try_cookie_login():
                 return True
@@ -31,12 +32,12 @@ class LichessAuth:
             return False
 
         except Exception as e:
-            logger.error(f"Failed during sign-in process: {e}")
+            logger.error(f"Authentication process failed: {e}")
             return False
 
     def _try_cookie_login(self) -> bool:
         """Try to login using saved cookies"""
-        logger.debug("Attempting cookie-based login")
+        logger.debug("Attempting session-based authentication")
 
         # Load cookies and check if we're logged in
         cookies_loaded = self.browser_manager.load_cookies()
@@ -49,32 +50,34 @@ class LichessAuth:
         time.sleep(2)
 
         if self.browser_manager.is_logged_in():
-            logger.success("Successfully logged in using saved cookies")
+            logger.success("Session-based authentication successful")
             return True
         else:
-            logger.debug("Saved cookies are invalid or expired, clearing them")
+            logger.debug("Saved session invalid or expired - clearing")
             self.browser_manager.clear_cookies()
             return False
 
     def _username_password_login(self) -> bool:
         """Login using username and password"""
-        logger.debug("Attempting username/password login")
+        logger.debug("Attempting credential-based authentication")
 
         try:
             driver = self.browser_manager.get_driver()
 
+            # === NAVIGATION TO LOGIN ===
             # Click sign-in button
             signin_button = driver.find_element(
                 by=By.XPATH, value="/html/body/header/div[2]/a"
             )
             signin_button.click()
-            logger.debug("Clicked sign-in button")
+            logger.debug("Navigated to login page")
 
+            # === CREDENTIAL INPUT ===
             # Enter credentials
             lichess_config = self.config_manager.lichess_config
             username_field = driver.find_element(By.ID, "form3-username")
             password_field = driver.find_element(By.ID, "form3-password")
-            logger.debug("Found username and password fields")
+            logger.debug("Located login form fields")
 
             # Use standardized lowercase keys with backward compatibility
             username_value = lichess_config.get(
@@ -92,17 +95,17 @@ class LichessAuth:
             driver.find_element(
                 By.XPATH, "/html/body/div/main/form/div[1]/button"
             ).click()
-            logger.debug("Submitted login form")
+            logger.debug("Submitted login credentials")
 
             # Handle TOTP if needed
             if not self._handle_totp():
                 return False
 
-            logger.success("Login successful")
+            logger.success("Credential-based authentication successful")
             return True
 
         except Exception as e:
-            logger.error(f"Failed during username/password login: {e}")
+            logger.error(f"Credential-based authentication failed: {e}")
             return False
 
     def _handle_totp(self) -> bool:
@@ -116,10 +119,11 @@ class LichessAuth:
             # Check if we need TOTP (look for "authentication code" text)
             page_text = driver.page_source.lower()
             if "authentication code" not in page_text:
-                logger.debug("No TOTP required")
+                logger.debug("Two-factor authentication not required")
                 return True
 
-            logger.info("TOTP authentication required")
+            # === TWO-FACTOR AUTHENTICATION ===
+            logger.info("Two-factor authentication required")
 
             # Try to find TOTP input field
             totp_field = None
@@ -139,7 +143,7 @@ class LichessAuth:
                     continue
 
             if not totp_field:
-                logger.error("Could not find TOTP input field")
+                logger.error("Could not locate TOTP input field")
                 return False
 
             # Get TOTP code
@@ -151,7 +155,7 @@ class LichessAuth:
             # Enter TOTP code
             totp_field.clear()
             totp_field.send_keys(totp_code)
-            logger.debug("Entered TOTP code")
+            logger.debug("Entered two-factor authentication code")
 
             # Submit TOTP form
             try:
@@ -163,12 +167,12 @@ class LichessAuth:
             except:
                 # Try alternative submit methods
                 totp_field.submit()
-                logger.debug("Submitted TOTP form via input")
+                logger.debug("Submitted TOTP form via input field")
 
             return True
 
         except Exception as e:
-            logger.error(f"Failed to handle TOTP: {e}")
+            logger.error(f"Two-factor authentication failed: {e}")
             return False
 
     def _get_totp_code(self) -> str:

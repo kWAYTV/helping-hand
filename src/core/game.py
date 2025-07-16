@@ -1,5 +1,6 @@
 """Game Manager - Main game flow and logic orchestration"""
 
+import threading
 from time import sleep
 
 import chess
@@ -11,6 +12,7 @@ from ..config import ConfigManager
 from ..core.board import BoardHandler
 from ..core.browser import BrowserManager
 from ..core.engine import ChessEngine
+from ..gui import ChessBotGUI, GUILogHandler
 from ..input.keyboard_handler import KeyboardHandler
 from ..utils.debug import DebugUtils
 from ..utils.helpers import advanced_humanized_delay
@@ -46,60 +48,147 @@ class GameManager:
         self._current_suggestion = None
         self._arrow_drawn = False
 
-    def start(self) -> None:
-        """Start the chess bot application"""
-        logger.info("Starting chess bot application")
+        # Initialize GUI if enabled
+        self.gui = None
+        self.gui_log_handler = None
+        self.gui_thread = None
+        self._initialize_gui()
 
-        # Log current configuration
-        if self.config_manager.is_autoplay_enabled:
-            logger.info("AutoPlay MODE: Bot will make moves automatically")
-        else:
-            move_key = self.config_manager.move_key
-            logger.info(
-                f"Suggestion MODE: Bot will suggest moves (press '{move_key}' to execute)"
-            )
-
-        # Start keyboard listener
-        logger.debug("Starting keyboard listener")
-        self.keyboard_handler.start_listening()
-
-        # Navigate to Lichess with recovery
-        logger.debug("Navigating to lichess.org")
-        try:
-            self.browser_manager.navigate_to("https://www.lichess.org")
-        except Exception as e:
-            logger.error(f"Failed to navigate to Lichess: {e}")
-            if self.browser_recovery_manager.attempt_browser_recovery():
-                logger.info("Retrying navigation after browser recovery")
-                self.browser_manager.navigate_to("https://www.lichess.org")
-            else:
-                raise
-
-        # Show cookie status
-        cookie_info = self.browser_manager.get_cookies_info()
-        if cookie_info["exists"]:
-            logger.debug(
-                f"Found saved cookies ({cookie_info['count']} cookies, {cookie_info['file_size']} bytes)"
-            )
-        else:
-            logger.debug("No saved cookies found - will use username/password login")
-
-        # Sign in
-        if not self.lichess_auth.sign_in():
-            logger.error("Failed to sign in to Lichess")
+    def _initialize_gui(self) -> None:
+        """Initialize GUI if enabled"""
+        if not self.config_manager.is_gui_enabled:
+            logger.debug("GUI interface disabled in configuration")
             return
 
-        # Start game loop
-        logger.info("Waiting for game to start")
-        self.start_new_game()
+        try:
+            # === GUI INITIALIZATION ===
+            logger.info("Initializing graphical user interface")
+            self.gui = ChessBotGUI()
+
+            # Setup GUI log handler
+            self.gui_log_handler = GUILogHandler(self.gui)
+            self.gui_log_handler.install_handler()
+
+            # Configure GUI with current settings
+            mode = (
+                "AutoPlay" if self.config_manager.is_autoplay_enabled else "Suggestion"
+            )
+            self.gui.update_game_status("Initializing...")
+            self.gui.status_panel.update_bot_mode(mode)
+
+            engine_config = self.config_manager.engine_config
+            depth = engine_config.get("depth", "5")
+            self.gui.status_panel.update_engine_depth(int(depth))
+
+            logger.success("GUI interface ready")
+
+        except Exception as e:
+            logger.error(f"GUI initialization failed: {e}")
+            self.gui = None
+
+    def _start_game_thread(self) -> None:
+        """Start game logic in separate thread (GUI runs in main thread)"""
+        self.game_thread = threading.Thread(target=self._run_game_logic, daemon=True)
+        self.game_thread.start()
+        logger.debug("Game logic running in background thread")
+
+    def start(self) -> None:
+        """Start the chess bot application"""
+        # === APPLICATION STARTUP ===
+        logger.info("Chess Bot - Helping Hand starting")
+
+        if self.gui:
+            # GUI mode: Run GUI in main thread, game logic in background
+            self._start_game_thread()
+            logger.info("Running with graphical interface")
+
+            try:
+                self.gui.run()
+            except KeyboardInterrupt:
+                logger.info("Application closed by user")
+            finally:
+                self.cleanup()
+        else:
+            # Console mode: Run game logic directly
+            logger.info("Running in console mode")
+            self._run_game_logic()
+
+    def _run_game_logic(self) -> None:
+        """Run the main game logic (in separate thread when GUI is active)"""
+        try:
+            # === CONFIGURATION DISPLAY ===
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_game_status("Starting application...")
+
+            if self.config_manager.is_autoplay_enabled:
+                logger.info("Bot Mode: AutoPlay (fully automated)")
+            else:
+                move_key = self.config_manager.move_key
+                logger.info(
+                    f"Bot Mode: Suggestion (manual confirmation with '{move_key}' key)"
+                )
+
+            # === SYSTEM INITIALIZATION ===
+            logger.debug("Initializing input handler")
+            self.keyboard_handler.start_listening()
+
+            # === LICHESS CONNECTION ===
+            logger.info("Connecting to Lichess.org")
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_game_status("Navigating to Lichess...")
+
+            try:
+                self.browser_manager.navigate_to("https://www.lichess.org")
+            except Exception as e:
+                logger.error(f"Failed to navigate to Lichess: {e}")
+                if self.browser_recovery_manager.attempt_browser_recovery():
+                    logger.info("Retrying navigation after browser recovery")
+                    self.browser_manager.navigate_to("https://www.lichess.org")
+                else:
+                    raise
+
+            # === COOKIE STATUS ===
+            cookie_info = self.browser_manager.get_cookies_info()
+            if cookie_info["exists"]:
+                logger.debug(
+                    f"Found saved session ({cookie_info['count']} cookies, {cookie_info['file_size']} bytes)"
+                )
+            else:
+                logger.debug(
+                    "No saved session found - will use username/password authentication"
+                )
+
+            # === AUTHENTICATION ===
+            logger.info("Authenticating with Lichess")
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_game_status("Signing in to Lichess...")
+
+            if not self.lichess_auth.sign_in():
+                logger.error("Authentication failed")
+                if self.gui and self.gui.is_gui_running():
+                    self.gui.update_game_status("Failed to sign in")
+                return
+
+            # === GAME STARTUP ===
+            logger.info("Waiting for game to start")
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_game_status("Waiting for game to start...")
+            self.start_new_game()
+
+        except Exception as e:
+            logger.error(f"Game logic error: {e}")
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_game_status(f"Error: {e}")
+            raise
 
     def start_new_game(self) -> None:
         """Start a new game with enhanced error handling"""
-        logger.debug("Starting new game - resetting board")
+        # === NEW GAME INITIALIZATION ===
+        logger.info("Starting new game")
         self.board.reset()
         self.current_game_active = True
 
-        # Wait for game to be ready with retries
+        # Wait for game interface to be ready with retries
         max_attempts = 3
         for attempt in range(max_attempts):
             try:
@@ -107,12 +196,14 @@ class GameManager:
                     break
                 else:
                     logger.warning(
-                        f"Game ready attempt {attempt + 1}/{max_attempts} failed"
+                        f"Game interface not ready (attempt {attempt + 1}/{max_attempts})"
                     )
                     if attempt < max_attempts - 1:
                         sleep(2)
                     else:
-                        logger.error("Failed to wait for game ready after all attempts")
+                        logger.error(
+                            "Game interface failed to initialize after all attempts"
+                        )
                         return
             except Exception as e:
                 logger.error(
@@ -128,20 +219,27 @@ class GameManager:
                     logger.error("Failed to start new game")
                     return
 
-        # Determine our color with fallback
+        # === PLAYER COLOR DETECTION ===
         try:
             our_color = self.board_handler.determine_player_color()
         except Exception as e:
             logger.error(f"Failed to determine player color: {e}")
-            logger.warning("Assuming we're playing as White")
+            logger.warning("Defaulting to White")
             our_color = "W"
 
-        # Start playing with enhanced error handling
+        # Update GUI with our playing color
+        if self.gui and self.gui.is_gui_running():
+            color_name = "White" if our_color == "W" else "Black"
+            self.gui.status_panel.update_our_color(color_name)
+            self.gui.set_our_color(color_name.lower())
+
+        # === GAME START ===
         try:
             self.play_game(our_color)
         except Exception as e:
             logger.error(f"Game play failed: {e}")
             self.debug_utils.save_debug_info(self.browser_manager.driver, 0, self.board)
+
             # Attempt recovery and restart
             if self.browser_recovery_manager.attempt_browser_recovery():
                 logger.info("Attempting to restart game after recovery")
@@ -151,36 +249,39 @@ class GameManager:
 
     def play_game(self, our_color: str) -> None:
         """Main game playing loop"""
-        logger.debug(f"Starting play_game as {our_color}")
+        # === GAME SETUP ===
+        logger.info(
+            f"Game started - playing as {'White' if our_color == 'W' else 'Black'}"
+        )
 
-        # Get previous moves to sync board state
+        # Sync board state with current position
         move_number = self.board_handler.get_previous_moves(self.board)
-        logger.debug(f"Ready to play. Starting at move number: {move_number}")
+        logger.debug(f"Board synchronized - starting at move {move_number}")
 
-        # Save cookies after successful game start (indicates successful login)
-        logger.debug("Saving login cookies for faster future authentication")
+        # Update GUI with initial board state
+        if self.gui and self.gui.is_gui_running():
+            self.gui.update_board_state(self.board)
+            self.gui.update_game_status("Game in progress")
+
+        # Save session after successful game start
+        logger.debug("Saving authentication session")
         self.browser_manager.save_cookies()
 
-        # If this is the very start of the game, log our turn status
+        # === GAME STATUS LOGGING ===
         if move_number == 1:
             if our_color == "W":
-                logger.info("Starting fresh game as White - we move first")
+                logger.info("Fresh game started - we play first as White")
             else:
-                logger.info(
-                    "Starting fresh game as Black - waiting for White's first move"
-                )
+                logger.info("Fresh game started - waiting for White's first move")
         else:
-            # Joined game in progress - check if it's immediately our turn
             if self._is_our_turn(our_color):
-                logger.info(
-                    f"Joined game in progress - it's our turn to play move {move_number}"
-                )
+                logger.info(f"Joined game in progress - our turn (move {move_number})")
             else:
                 logger.info(
-                    f"Joined game in progress - waiting for opponent's move {move_number}"
+                    f"Joined game in progress - waiting for opponent (move {move_number})"
                 )
 
-        # Main game loop with enhanced error handling
+        # === MAIN GAME LOOP ===
         consecutive_errors = 0
         max_consecutive_errors = 5
 
@@ -188,21 +289,21 @@ class GameManager:
             try:
                 # Validate game state periodically
                 if not validate_game_state(self.board, move_number):
-                    logger.warning("Game state validation failed, attempting recovery")
+                    logger.warning("Game state validation failed - attempting recovery")
                     self.debug_utils.save_debug_info(
                         self.browser_manager.driver, move_number, self.board
                     )
 
                     # Try to recover by refreshing the page
                     if self.browser_recovery_manager.is_browser_healthy():
-                        logger.info("Attempting page refresh to recover game state")
+                        logger.info("Refreshing page to recover game state")
                         self.browser_manager.driver.refresh()
                         sleep(5)  # Wait for page to load
                         continue
                     else:
-                        logger.error("Browser not healthy, attempting recovery")
+                        logger.error("Browser unhealthy - attempting recovery")
                         if not self.browser_recovery_manager.attempt_browser_recovery():
-                            logger.error("Could not recover browser, exiting game")
+                            logger.error("Browser recovery failed - exiting game")
                             break
 
                 our_turn = self._is_our_turn(our_color)
@@ -222,12 +323,12 @@ class GameManager:
 
             except Exception as e:
                 consecutive_errors += 1
-                logger.error(f"Error in game loop (attempt {consecutive_errors}): {e}")
+                logger.error(
+                    f"Game loop error (attempt {consecutive_errors}/{max_consecutive_errors}): {e}"
+                )
 
                 if consecutive_errors >= max_consecutive_errors:
-                    logger.error(
-                        f"Too many consecutive errors ({consecutive_errors}), exiting game"
-                    )
+                    logger.error("Too many consecutive errors - exiting game")
                     self.debug_utils.save_debug_info(
                         self.browser_manager.driver, move_number, self.board
                     )
@@ -235,21 +336,21 @@ class GameManager:
 
                 # Try browser recovery for critical errors
                 if not self.browser_recovery_manager.is_browser_healthy():
-                    logger.warning("Browser unhealthy, attempting recovery")
+                    logger.warning("Browser unhealthy - attempting recovery")
                     if self.browser_recovery_manager.attempt_browser_recovery():
-                        logger.info("Browser recovery successful, continuing game")
+                        logger.info("Browser recovery successful - continuing game")
                         continue
                     else:
-                        logger.error("Browser recovery failed, exiting game")
+                        logger.error("Browser recovery failed - exiting game")
                         break
 
                 # Small delay before retrying
                 sleep(2)
 
-        # Game complete
-        logger.debug("Game completed - follow-up element detected")
+        # === GAME COMPLETION ===
+        logger.info("Game completed")
         self._log_game_result()
-        logger.info("Game complete. Waiting for new game to start.")
+        logger.info("Waiting for next game")
         self.start_new_game()
 
     def _is_our_turn(self, our_color: str) -> bool:
@@ -263,7 +364,7 @@ class GameManager:
         # Check if we already made the move
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
-            logger.debug(f"Our move detected on board at position {move_number}")
+            logger.debug(f"Move {move_number} already executed: {move_text}")
             self.board_handler.clear_arrow()
 
             if self.board_handler.validate_and_push_move(
@@ -273,18 +374,22 @@ class GameManager:
             else:
                 return move_number
 
-        # Get best move from engine
+        # === MOVE CALCULATION ===
         engine_depth = self.config_manager.get(
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
-        logger.debug(f"Our turn - calculating best move (depth: {engine_depth})")
+        logger.debug(f"Calculating move (depth: {engine_depth})")
         advanced_humanized_delay("engine thinking", self.config_manager, "thinking")
 
         result = self.chess_engine.get_best_move(self.board)
         move_str = str(result.move)
         src_square = move_str[:2]
         dst_square = move_str[2:]
-        logger.info(f"Engine suggests: {result.move} ({src_square} → {dst_square})")
+        logger.info(f"Engine recommends: {result.move} ({src_square} → {dst_square})")
+
+        # Update GUI with suggestion
+        if self.gui and self.gui.is_gui_running():
+            self.gui.show_move_suggestion(result.move)
 
         # Handle move execution based on mode
         if self.config_manager.is_autoplay_enabled:
@@ -296,17 +401,22 @@ class GameManager:
         self, move: chess.Move, move_number: int, our_color: str
     ) -> int:
         """Execute move automatically"""
-        logger.debug(f"Making move: {move}")
+        logger.info(f"Executing move: {move}")
 
         # Show arrow briefly if enabled, even in autoplay
         if self.config_manager.show_arrow:
-            logger.debug("Showing move arrow before auto execution")
+            logger.debug("Displaying move preview")
             self.board_handler.draw_arrow(move, our_color)
             # Brief delay to show the arrow
             advanced_humanized_delay("showing arrow", self.config_manager, "base")
 
         self.board_handler.execute_move(move, move_number)
         self.board.push(move)
+
+        # Update GUI
+        if self.gui and self.gui.is_gui_running():
+            self.gui.update_board_state(self.board, move)
+            self.gui.add_move(str(move), "us")
 
         return move_number + 1
 
@@ -320,17 +430,22 @@ class GameManager:
             self._arrow_drawn = False
 
         if self.config_manager.show_arrow and not self._arrow_drawn:
-            logger.debug("Showing move suggestion arrow")
+            logger.debug("Displaying move suggestion")
             self.board_handler.draw_arrow(move, our_color)
             self._arrow_drawn = True
 
         # Check for key press
         if self.keyboard_handler.should_make_move():
-            logger.info(f"Manual key press detected - making move: {move}")
+            logger.info(f"Manual confirmation received - executing: {move}")
 
             self.board_handler.execute_move(move, move_number)
             self.keyboard_handler.reset_move_state()
             self.board.push(move)
+
+            # Update GUI
+            if self.gui and self.gui.is_gui_running():
+                self.gui.update_board_state(self.board, move)
+                self.gui.add_move(str(move), "us")
 
             # Reset suggestion tracking
             self._current_suggestion = None
@@ -338,16 +453,13 @@ class GameManager:
 
             return move_number + 1
         else:
-            # Just suggesting - show the move and wait
+            # Show suggestion and wait for input
             move_key = self.config_manager.move_key
             move_str = str(move)
             src_square = move_str[:2]
             dst_square = move_str[2:]
             logger.debug(
-                f"Suggesting move: {move} ({src_square} → {dst_square}) (press {move_key} to execute)"
-            )
-            logger.info(
-                f"Suggest move: {move} ({src_square} → {dst_square}) - press {move_key} to execute"
+                f"Awaiting confirmation for: {move} ({src_square} → {dst_square}) - press '{move_key}'"
             )
             sleep(0.1)  # Small delay to avoid spam
 
@@ -359,11 +471,15 @@ class GameManager:
 
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
-            logger.info(f"Opponent move detected at position {move_number}")
+            logger.info(f"Opponent played: {move_text}")
 
             if self.board_handler.validate_and_push_move(
                 self.board, move_text, move_number, False
             ):
+                # Update GUI for opponent move
+                if self.gui and self.gui.is_gui_running():
+                    self.gui.update_board_state(self.board)
+                    self.gui.add_move(move_text, "opponent")
                 return move_number + 1
 
         return move_number
@@ -371,6 +487,7 @@ class GameManager:
     def _log_game_result(self) -> None:
         """Log the game result when game ends"""
         try:
+            # === GAME RESULT EXTRACTION ===
             # Get score using driver directly
             score_element = self.browser_manager.driver.find_element(
                 By.XPATH, "/html/body/div[2]/main/div[1]/rm6/l4x/div/p[1]"
@@ -383,17 +500,41 @@ class GameManager:
             )
             result = result_element.text if result_element else "Result not found"
 
-            logger.success(f"GAME FINISHED - {score} | {result}")
+            logger.success(f"Game Result: {score} | {result}")
+
+            # Update GUI with game result
+            if self.gui and self.gui.is_gui_running():
+                self.gui.show_game_result(f"{score} | {result}")
 
         except Exception as e:
-            logger.debug(f"Could not extract game result: {e}")
-            logger.info("GAME FINISHED - Result details not available")
+            logger.debug(f"Could not extract detailed game result: {e}")
+            logger.success("Game finished")
+
+            # Update GUI with generic result
+            if self.gui and self.gui.is_gui_running():
+                self.gui.show_game_result("Game finished")
 
     def cleanup(self) -> None:
         """Clean up resources with enhanced error handling"""
-        logger.info("Cleaning up resources")
+        # === RESOURCE CLEANUP ===
+        logger.info("Shutting down application")
 
-        # Clean up keyboard handler
+        # Clean up GUI
+        if self.gui_log_handler:
+            safe_execute(
+                self.gui_log_handler.remove_handler,
+                log_errors=True,
+                default_return=None,
+            )
+
+        if self.gui:
+            safe_execute(
+                self.gui._on_closing,
+                log_errors=True,
+                default_return=None,
+            )
+
+        # Clean up input handler
         if self.keyboard_handler:
             safe_execute(
                 self.keyboard_handler.stop_listening,
@@ -411,4 +552,4 @@ class GameManager:
                 self.browser_manager.close, log_errors=True, default_return=None
             )
 
-        logger.info("Resource cleanup completed")
+        logger.info("Application shutdown complete")

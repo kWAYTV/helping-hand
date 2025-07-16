@@ -1,6 +1,8 @@
-# Lichess Chess Bot
-
-Professional automated chess assistant for Lichess.org featuring Stockfish engine integration and advanced humanization algorithms.
+<div align="center">
+    <h1>Lichess Chess Bot</h1>
+    <h4>Professional automated chess assistant for Lichess.org featuring Stockfish engine integration and advanced humanization algorithms</h4>
+    <img width="60%" src="assets/preview.png" alt="Chess Bot Preview">
+</div>
 
 ## Features
 

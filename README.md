@@ -1,46 +1,40 @@
 # Lichess Chess Bot
 
-Professional automated chess bot for Lichess.org with Stockfish engine integration and advanced humanization.
+Professional automated chess assistant for Lichess.org featuring Stockfish engine integration and advanced humanization algorithms.
 
-## 📦 Releases
+## Features
 
-Pre-built executables are available in [GitHub Releases](https://github.com/kWAYTV/helping-hand/releases).
+- **Stockfish Integration**: Configurable engine depth and skill levels
+- **Modern GUI**: Real-time board visualization with move suggestions
+- **Smart Humanization**: Randomized timing patterns to simulate human play
+- **Dual Modes**: Fully automated or suggestion-only operation
+- **Cross-Platform**: Windows and Linux support
 
-## 🚀 Quick Start
+## Installation
 
-### From Release (Recommended)
+### Option 1: Pre-built Release (Recommended)
 
-1. Download the latest release zip file
-2. Extract the zip file to your desired location
-3. Configure `config.ini` (copy from `config.example.ini`)
-4. Run `helping-hand.exe`
+1. Download from [GitHub Releases](https://github.com/kWAYTV/helping-hand/releases)
+2. Extract and configure `config.ini` (see `config.example.ini`)
+3. Run the executable
 
-### From Source
+### Option 2: From Source
 
-1. Clone repository and install dependencies:
+```bash
+git clone https://github.com/kWAYTV/helping-hand.git
+cd helping-hand
+pip install -r requirements.txt
+```
 
-   ```bash
-   git clone https://github.com/kWAYTV/helping-hand.git
-   cd helping-hand
-   pip install -r requirements.txt
-   ```
+**Dependencies** (place in `deps/` folder):
 
-2. Download required binaries to `deps/`:
+- [Stockfish Engine](https://stockfishchess.org/download/)
+- [GeckoDriver](https://github.com/mozilla/geckodriver/releases)
+- [xPath Finder Extension](https://addons.mozilla.org/en-US/firefox/addon/xpath_finder/) (.xpi file)
 
-   - **Stockfish**: [stockfishchess.org](https://stockfishchess.org/download/)
-   - **GeckoDriver**: [GitHub releases](https://github.com/mozilla/geckodriver/releases)
-   - **xPath Finder**: [Firefox addon](https://addons.mozilla.org/en-US/firefox/addon/xpath_finder/) (download `.xpi` file)
+## Configuration
 
-3. Configure and run:
-   ```bash
-   cp config.example.ini config.ini
-   # Edit config.ini with your credentials
-   python main.py
-   ```
-
-## ⚙️ Configuration
-
-### Essential Settings
+Essential `config.ini` settings:
 
 ```ini
 [lichess]
@@ -49,39 +43,33 @@ password = your_password
 totp-secret = your_2fa_secret  # Optional
 
 [engine]
-depth = 5          # Higher = stronger/slower
-skill-level = 14   # 0-20 engine strength
+depth = 5          # Analysis depth (1-20)
+skill-level = 14   # Engine strength (0-20)
 
 [bot]
-auto-play = true   # false for manual confirmation
-move-key = end     # Key to execute moves manually
-log-level = INFO   # TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR
+auto-play = true   # Auto-execute moves
+move-key = end     # Manual trigger key
+log-level = INFO   # Logging verbosity
 ```
 
-### Humanization
+## Usage
 
-Built-in timing randomization with configurable delays:
+### AutoPlay Mode
 
-- Base actions: 0.3-1.8s
-- Move execution: 0.5-2.5s
-- Engine thinking: 0.8-3.0s
+Fully automated gameplay with built-in humanization delays (0.3-3.0s randomization).
 
-## 🖥️ GUI Interface
+### Suggestion Mode
 
-The bot includes a modern GUI with console output:
+Displays engine recommendations requiring manual confirmation via hotkey or GUI.
 
-- **Real-time chess board** with piece positions and move visualization
-- **Engine suggestions** with arrows and move notation
-- **Live game information** (color, turn, move number)
-- **Activity log** with color-coded messages and auto-scroll
-- **Control panel** for starting/stopping the bot and manual move execution
-- **Clean, dark theme** designed for extended use
+### GUI Features
 
-## 🎮 Operation Modes
+- Live chess board with position tracking
+- Engine move suggestions with visual arrows
+- Real-time game information and statistics
+- Color-coded activity log with auto-scroll
+- Manual control panel
 
-- **AutoPlay**: Fully automated gameplay
-- **Suggestion**: Manual confirmation required (press configured key or GUI button)
+## License
 
-## 📝 License
-
-Educational purposes only. Users responsible for compliance with Lichess ToS.
+For educational purposes only. Users are responsible for compliance with Lichess Terms of Service.

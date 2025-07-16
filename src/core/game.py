@@ -691,7 +691,7 @@ class GameManager:
         # Close chess engine
         if hasattr(self, "chess_engine") and self.chess_engine:
             safe_execute(
-                self.chess_engine.close,
+                self.chess_engine.quit,
                 log_errors=True,
                 operation_name="chess engine cleanup",
             )

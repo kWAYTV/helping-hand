@@ -16,11 +16,13 @@ class ChessBoardWidget(tk.Frame):
         self.base_size = 400  # Base board size
         self.orientation = "white"  # "white" or "black"
 
-        # Colors
-        self.light_square_color = "#F0D9B5"
-        self.dark_square_color = "#B58863"
-        self.suggestion_color = "#00FF00"
-        self.last_move_color = "#FFFF7F"
+        # Colors - Dark Mode Theme
+        self.light_square_color = "#4A4A4A"  # Dark gray for light squares
+        self.dark_square_color = "#2D2D2D"  # Very dark gray for dark squares
+        self.suggestion_color = "#00DD88"  # Softer green for suggestions
+        self.last_move_color = "#FFB347"  # Soft orange for last move highlight
+        self.square_outline_color = "#555555"  # Medium gray for square outlines
+        self.coordinate_color = "#AAAAAA"  # Light gray for coordinates
 
         # State
         self.current_board = chess.Board()
@@ -109,7 +111,14 @@ class ChessBoardWidget(tk.Frame):
                     color = self.last_move_color
 
                 self.canvas.create_rectangle(
-                    x1, y1, x2, y2, fill=color, outline="#8B4513", width=1, tags="board"
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    fill=color,
+                    outline=self.square_outline_color,
+                    width=1,
+                    tags="board",
                 )
 
     def _draw_coordinates(self):
@@ -135,7 +144,7 @@ class ChessBoardWidget(tk.Frame):
                 x,
                 y,
                 text=file_letter,
-                fill="#CCCCCC",
+                fill=self.coordinate_color,
                 font=("Arial", font_size, "bold"),
                 tags="coordinates",
             )
@@ -148,7 +157,7 @@ class ChessBoardWidget(tk.Frame):
                 x,
                 y,
                 text=rank_number,
-                fill="#CCCCCC",
+                fill=self.coordinate_color,
                 font=("Arial", font_size, "bold"),
                 tags="coordinates",
             )
@@ -203,7 +212,9 @@ class ChessBoardWidget(tk.Frame):
                     x,
                     y,
                     text=symbol,
-                    fill="#FFFFFF" if piece.color else "#000000",
+                    fill=(
+                        "#F5F5F5" if piece.color else "#1A1A1A"
+                    ),  # Slightly off-white and off-black for better contrast
                     font=("Arial", font_size, "bold"),
                     tags="pieces",
                 )

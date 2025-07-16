@@ -70,6 +70,14 @@ Displays engine recommendations requiring manual confirmation via hotkey or GUI.
 - Color-coded activity log with auto-scroll
 - Manual control panel
 
-## License
+## Disclaimer
 
-For educational purposes only. Users are responsible for compliance with Lichess Terms of Service.
+**This is a proof of concept (POC) for educational and research purposes only.**
+
+The developers assume no responsibility or liability for any consequences arising from the use of this software. Users are solely responsible for:
+
+- Compliance with Lichess Terms of Service
+- Any account actions or penalties
+- Legal implications in their jurisdiction
+
+Use at your own risk.

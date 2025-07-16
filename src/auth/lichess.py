@@ -22,12 +22,10 @@ class LichessAuth:
         try:
             # First try loading saved cookies
             if self._try_cookie_login():
-                self.browser_manager.hide_username_elements()
                 return True
 
             # Fall back to username/password login
             if self._username_password_login():
-                self.browser_manager.hide_username_elements()
                 return True
 
             return False

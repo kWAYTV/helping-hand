@@ -157,9 +157,6 @@ class GameManager:
         move_number = self.board_handler.get_previous_moves(self.board)
         logger.debug(f"Ready to play. Starting at move number: {move_number}")
 
-        # Hide username elements now that we're in game
-        self.browser_manager.hide_username_elements()
-
         # Save cookies after successful game start (indicates successful login)
         logger.debug("Saving login cookies for faster future authentication")
         self.browser_manager.save_cookies()

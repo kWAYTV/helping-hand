@@ -34,22 +34,21 @@ class BoardHandler:
 
     def wait_for_game_ready(self) -> bool:
         """Wait for game to be ready and return True if successful"""
-        # === GAME INTERFACE DETECTION ===
-        logger.debug("Waiting for game interface to load")
+        logger.debug("Waiting for game setup")
 
         # Wait for follow-up to disappear
         while self.browser_manager.check_exists_by_class("follow-up"):
-            logger.debug("Found follow-up dialog - waiting for user action")
+            logger.debug("Found follow-up element, waiting for user action...")
             sleep(1)
 
-        logger.debug("Game interface loading")
+        logger.debug("No follow-up found, waiting for game interface")
 
         try:
             # Wait for board first (this appears quickly)
             WebDriverWait(self.driver, 30).until(
                 ec.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
             )
-            logger.debug("Chess board detected")
+            logger.debug("Board found")
 
             # Try multiple selectors for move input box (more flexible)
             move_input_selectors = [
@@ -67,7 +66,7 @@ class BoardHandler:
                         ec.presence_of_element_located((selector_type, selector_value))
                     )
                     logger.debug(
-                        f"Move input detected using {selector_type}: {selector_value}"
+                        f"Move input found using {selector_type}: {selector_value}"
                     )
                     move_input_found = True
                     break
@@ -76,17 +75,17 @@ class BoardHandler:
 
             if not move_input_found:
                 # Try a longer wait for the most reliable selector
-                logger.debug("Extending wait for move input")
+                logger.debug("Trying longer wait for move input...")
                 WebDriverWait(self.driver, 30).until(
                     ec.presence_of_element_located((By.CLASS_NAME, "ready"))
                 )
-                logger.debug("Move input detected after extended wait")
+                logger.debug("Move input found after extended wait")
 
-            logger.info("Game interface ready")
+            logger.debug("Game interface ready")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to wait for game interface: {e}")
+            logger.error(f"Failed to wait for game ready: {e}")
             return False
 
     def determine_player_color(self) -> str:
@@ -96,176 +95,17 @@ class BoardHandler:
         )
 
         if board_set_for_white:
-            logger.info("Playing as White")
+            logger.info("Playing as WHITE")
             return "W"
         else:
-            logger.info("Playing as Black")
+            logger.info("Playing as BLACK")
             return "B"
-
-    def is_our_turn_via_interface(self, our_color: str = None) -> Optional[bool]:
-        """Check if it's our turn by examining the Lichess interface"""
-        # Get our color once at the start if not provided
-        if our_color is None:
-            our_color = self.determine_player_color()
-
-        try:
-            # Method 1: Check page JSON data for game state (most reliable for modern Lichess)
-            try:
-                import re
-
-                page_source = self.driver.page_source
-                if '"possibleMoves":' in page_source:
-                    # Extract possibleMoves from JSON data
-                    possible_moves_match = re.search(
-                        r'"possibleMoves":"([^"]*)"', page_source
-                    )
-                    if possible_moves_match:
-                        possible_moves = possible_moves_match.group(1)
-                        if possible_moves and possible_moves.strip():
-                            logger.debug(
-                                f"Turn detected via possibleMoves: our turn (moves: {possible_moves})"
-                            )
-                            return True
-                        else:
-                            logger.debug(
-                                "Turn detected via possibleMoves: opponent's turn (no moves available)"
-                            )
-                            return False
-
-                # Check if clock is running and it's our color to move
-                clock_match = re.search(
-                    r'"clock":\{[^}]*"running":true[^}]*\}', page_source
-                )
-                if clock_match:
-                    # If clock is running, check whose turn it is based on FEN or player field
-                    player_match = re.search(r'"player":"(\w+)"', page_source)
-                    if player_match:
-                        player_color = player_match.group(1)
-                        if (player_color == "white" and our_color == "W") or (
-                            player_color == "black" and our_color == "B"
-                        ):
-                            # Check FEN to see whose turn it is
-                            fen_match = re.search(r'"fen":"([^"]+)"', page_source)
-                            if fen_match:
-                                fen = fen_match.group(1)
-                                fen_parts = fen.split(" ")
-                                if len(fen_parts) > 1:
-                                    active_color = fen_parts[
-                                        1
-                                    ]  # 'w' for white, 'b' for black
-                                    is_our_turn = (
-                                        active_color == "w" and our_color == "W"
-                                    ) or (active_color == "b" and our_color == "B")
-                                    logger.debug(
-                                        f"Turn detected via FEN: {'our' if is_our_turn else 'opponent'} turn (FEN active color: {active_color}, we are {our_color})"
-                                    )
-                                    return is_our_turn
-            except Exception as e:
-                logger.debug(f"Could not check JSON game data: {e}")
-
-            # Method 2: Check if move input is enabled and focused
-            move_input = self.get_move_input_handle()
-            if move_input:
-                # If input is enabled and ready, it's likely our turn
-                if (
-                    move_input.is_enabled()
-                    and move_input.get_attribute("class")
-                    and "ready" in move_input.get_attribute("class")
-                ):
-                    logger.debug("Turn detected via move input state: our turn")
-                    return True
-
-                # Check if input is disabled (opponent's turn)
-                if not move_input.is_enabled() or "disabled" in (
-                    move_input.get_attribute("class") or ""
-                ):
-                    logger.debug("Turn detected via move input state: opponent's turn")
-                    return False
-
-            # Method 3: Check for clock indicators (our clock running = our turn)
-            try:
-                # Look for active/running clock indicators
-                active_clocks = self.driver.find_elements(
-                    By.CSS_SELECTOR, ".clock.running"
-                )
-                if active_clocks:
-                    # If there's an active clock, determine which side it's on
-                    for clock in active_clocks:
-                        clock_classes = clock.get_attribute("class") or ""
-                        if "top" in clock_classes or "black" in clock_classes:
-                            # Black's clock is running
-                            is_our_turn = our_color == "B"
-                            logger.debug(
-                                f"Turn detected via clock: {'our' if is_our_turn else 'opponent'} turn (Black clock running, we are {our_color})"
-                            )
-                            return is_our_turn
-                        elif "bottom" in clock_classes or "white" in clock_classes:
-                            # White's clock is running
-                            is_our_turn = our_color == "W"
-                            logger.debug(
-                                f"Turn detected via clock: {'our' if is_our_turn else 'opponent'} turn (White clock running, we are {our_color})"
-                            )
-                            return is_our_turn
-            except Exception as e:
-                logger.debug(f"Could not check clock indicators: {e}")
-
-            # Method 4: Check for move highlighting or indicators
-            try:
-                # Look for elements that indicate whose turn it is
-                turn_indicators = [".turn", ".playing", ".to-move", "[data-turn]"]
-
-                for selector in turn_indicators:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                    for element in elements:
-                        element_text = element.text.lower()
-                        if "your turn" in element_text or "you to move" in element_text:
-                            logger.debug("Turn detected via turn indicator: our turn")
-                            return True
-                        elif "opponent" in element_text or "waiting" in element_text:
-                            logger.debug(
-                                "Turn detected via turn indicator: opponent's turn"
-                            )
-                            return False
-            except Exception as e:
-                logger.debug(f"Could not check turn indicators: {e}")
-
-            # Method 5: Check for more specific turn indicators
-            try:
-                # Check for "your turn" or similar text in the game interface
-                page_text = self.driver.page_source.lower()
-                if "your turn" in page_text:
-                    logger.debug("Turn detected via page text: our turn")
-                    return True
-                elif "opponent" in page_text and "turn" in page_text:
-                    logger.debug("Turn detected via page text: opponent's turn")
-                    return False
-            except Exception as e:
-                logger.debug(f"Could not check page text: {e}")
-
-        except Exception as e:
-            logger.debug(f"Error checking interface turn state: {e}")
-
-        # If we can't determine from interface, return None
-        logger.debug("Could not determine turn state from interface")
-        return None
 
     @element_retry(max_retries=3, delay=1.0)
     def get_move_input_handle(self):
         """Get the move input element"""
-        # Try multiple selectors for better reliability with modern Lichess
+        # Try multiple selectors for better reliability
         move_input_selectors = [
-            # Modern Lichess interface selectors
-            (By.CSS_SELECTOR, "input.ready"),  # Input with ready class
-            (
-                By.CSS_SELECTOR,
-                "input[data-test-hook='keyboard-move']",
-            ),  # Keyboard move input
-            (By.CSS_SELECTOR, ".round__app input"),  # Input within round app
-            (
-                By.CSS_SELECTOR,
-                "input[autocomplete='off']",
-            ),  # Move input typically has autocomplete off
-            # Legacy selectors
             (By.CLASS_NAME, "ready"),  # Most common selector
             (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input"),  # Original
             (By.CSS_SELECTOR, "input[placeholder*='move']"),  # CSS alternative
@@ -274,38 +114,35 @@ class BoardHandler:
 
         for selector_type, selector_value in move_input_selectors:
             try:
-                WebDriverWait(self.driver, 2).until(
+                WebDriverWait(self.driver, 10).until(
                     ec.presence_of_element_located((selector_type, selector_value))
                 )
                 element = self.driver.find_element(selector_type, selector_value)
-                if element.is_displayed():
-                    logger.debug(
-                        f"Move input located using {selector_type}: {selector_value}"
-                    )
-                    return element
+                logger.debug(
+                    f"Move input handle found using {selector_type}: {selector_value}"
+                )
+                return element
             except Exception:
                 continue
 
         # If all specific selectors fail, try the fallback
         try:
-            WebDriverWait(self.driver, 2).until(
+            WebDriverWait(self.driver, 5).until(
                 ec.presence_of_element_located((By.TAG_NAME, "input"))
             )
             elements = self.driver.find_elements(By.TAG_NAME, "input")
-            # Return the first visible input element that's not a search input
+            # Return the first visible input element
             for element in elements:
-                if (
-                    element.is_displayed()
-                    and element.get_attribute("type") != "search"
-                    and "search"
-                    not in (element.get_attribute("placeholder") or "").lower()
-                ):
-                    logger.debug("Move input located using fallback method")
+                if element.is_displayed():
+                    logger.debug(
+                        "Move input handle found using fallback input selector"
+                    )
                     return element
         except Exception as e:
-            logger.debug(f"Failed to locate move input with fallback: {e}")
+            logger.error(f"Failed to find move input handle: {e}")
+            return None
 
-        logger.debug("Could not locate move input with any method")
+        logger.error("Could not find move input handle with any selector")
         return None
 
     @move_retry(max_retries=3, delay=0.5)
@@ -319,7 +156,7 @@ class BoardHandler:
                 move_text = element.text.strip()
                 if move_text:  # Only return if there's actual text
                     logger.debug(
-                        f"Found move {move_number}: '{move_text}' via class index"
+                        f"Found move {move_number}: '{move_text}' by class index"
                     )
                     return element
         except:
@@ -337,7 +174,9 @@ class BoardHandler:
                 element = self.driver.find_element(By.XPATH, selector)
                 move_text = element.text.strip()
                 if move_text:  # Only return if there's actual text
-                    logger.debug(f"Found move {move_number}: '{move_text}' via XPath")
+                    logger.debug(
+                        f"Found move {move_number}: '{move_text}' using {selector}"
+                    )
                     return element
             except:
                 continue
@@ -346,14 +185,15 @@ class BoardHandler:
 
     def get_previous_moves(self, board: chess.Board) -> int:
         """Get all previous moves and update board, return current move number"""
-        # === BOARD SYNCHRONIZATION ===
-        logger.debug("Synchronizing board state with current game")
+        logger.debug("Getting previous moves from board")
         temp_move_number = 1
 
         # First check if there are ANY moves at all
         first_move = self.find_move_by_alternatives(1)
         if not first_move:
-            logger.debug("No moves detected - starting fresh game")
+            logger.debug(
+                "No moves found on board - this appears to be the start of the game"
+            )
             return 1  # Start from move 1
 
         while temp_move_number < 999:  # Safety limit
@@ -367,7 +207,7 @@ class BoardHandler:
                     temp_move_number += 1
                     continue
 
-                logger.debug(f"Processing move {temp_move_number}: {move_text}")
+                logger.debug(f"Found previous move {temp_move_number}: {move_text}")
                 try:
                     board.push_san(move_text)
                     temp_move_number += 1
@@ -379,16 +219,16 @@ class BoardHandler:
                     break
             else:
                 logger.debug(
-                    f"Board synchronization complete - processed {temp_move_number - 1} moves"
+                    f"No more previous moves found. Total moves processed: {temp_move_number - 1}"
                 )
                 # Only save debug info if we have moves but can't parse them
                 if temp_move_number == 1:
-                    logger.debug("Fresh game confirmed - no moves on board")
+                    logger.debug("No moves on board - starting fresh game")
                 elif (
                     temp_move_number <= 3
                 ):  # If we can't find early moves (might be selector issue)
                     logger.warning(
-                        "Could not locate expected moves - investigating selectors"
+                        "Could not find expected moves, investigating selectors"
                     )
                     self.debug_utils.debug_move_list_structure(self.driver)
                     self.debug_utils.save_debug_info(
@@ -423,12 +263,10 @@ class BoardHandler:
             if test_move in board.legal_moves:
                 uci = board.push_san(move_text)
                 move_desc = "us" if is_our_move else "opponent"
-                logger.success(
-                    f"Move {ceil(move_number / 2)}: {uci.uci()} [{move_desc}]"
-                )
+                logger.success(f"{ceil(move_number / 2)}. {uci.uci()} [{move_desc}]")
                 return True
             else:
-                logger.warning(f"Illegal move attempted: '{move_text}'")
+                logger.warning(f"Move '{move_text}' is not legal in current position")
                 self.debug_utils.save_debug_info(self.driver, move_number, board)
                 return False
         except Exception as e:
@@ -492,7 +330,9 @@ class BoardHandler:
         move_str = str(move)
         src_square = move_str[:2]
         dst_square = move_str[2:]
-        logger.debug(f"Drawing move arrow: {src_square} → {dst_square}")
+        logger.debug(
+            f"Drawing move arrow: {src_square} → {dst_square} (green circle = source, gold circle = destination)"
+        )
 
         transform = self._get_piece_transform(move, our_color)
 

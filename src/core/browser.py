@@ -4,7 +4,6 @@ import json
 import os
 from typing import Optional
 
-import ua_generator
 from loguru import logger
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -28,23 +27,17 @@ class BrowserManager:
     def __init__(self):
         if not self._initialized:
             self.driver: Optional[webdriver.Firefox] = None
-            self.cookies_file = (
-                "lichess_session.json"  # Save in root directory with config files
-            )
+            self.cookies_file = os.path.join("deps", "lichess_cookies.json")
             self._setup_driver()
             BrowserManager._initialized = True
 
     def _setup_driver(self) -> None:
         """Initialize Firefox WebDriver with options"""
         try:
-            # === BROWSER INITIALIZATION ===
-            # Generate realistic user agent
-            ua = ua_generator.generate(
-                browser="firefox", platform=("windows", "macos", "linux")
-            )
-
             webdriver_options = webdriver.FirefoxOptions()
-            webdriver_options.add_argument(f'--user-agent="{ua.text}"')
+            webdriver_options.add_argument(
+                f'--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"'
+            )
 
             firefox_service = webdriver.firefox.service.Service(
                 executable_path=get_geckodriver_path()
@@ -57,8 +50,7 @@ class BrowserManager:
             # Install Firefox extensions
             install_firefox_extensions(self.driver)
 
-            logger.info("Firefox WebDriver initialized successfully")
-            logger.debug(f"User Agent: {ua.text}")
+            logger.debug("Firefox WebDriver initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")
             raise
@@ -122,14 +114,14 @@ class BrowserManager:
                 cookies = self.driver.get_cookies()
                 with open(self.cookies_file, "w") as f:
                     json.dump(cookies, f, indent=2)
-                logger.debug(f"Saved authentication session ({len(cookies)} cookies)")
+                logger.debug(f"Saved {len(cookies)} cookies to {self.cookies_file}")
             except Exception as e:
                 logger.error(f"Failed to save cookies: {e}")
 
     def load_cookies(self) -> bool:
         """Load cookies from file and apply them"""
         if not os.path.exists(self.cookies_file):
-            logger.debug("No saved authentication session found")
+            logger.info("No saved cookies found")
             return False
 
         try:
@@ -146,7 +138,7 @@ class BrowserManager:
                             f"Failed to add cookie {cookie.get('name', 'unknown')}: {e}"
                         )
 
-                logger.debug(f"Loaded authentication session ({len(cookies)} cookies)")
+                logger.debug(f"Loaded {len(cookies)} cookies")
                 return True
             else:
                 logger.debug("Cannot load cookies - not on Lichess domain")
@@ -162,12 +154,12 @@ class BrowserManager:
             # Clear browser cookies
             if self.driver:
                 self.driver.delete_all_cookies()
-                logger.debug("Cleared browser session")
+                logger.debug("Cleared browser cookies")
 
             # Clear saved cookies file
             if os.path.exists(self.cookies_file):
                 os.remove(self.cookies_file)
-                logger.debug("Cleared saved session file")
+                logger.debug("Cleared saved cookies file")
         except Exception as e:
             logger.error(f"Failed to clear cookies: {e}")
 
@@ -197,86 +189,41 @@ class BrowserManager:
             return False
 
         try:
-            page_source = self.driver.page_source
-
-            # FIRST: Check for strong authentication indicators (these override login page detection)
-            strong_auth_patterns = [
-                'data-user="',  # User data attribute with username
-                'data-username="',  # Username data attribute
-                'href="/logout"',  # Actual logout link
-            ]
-
-            for pattern in strong_auth_patterns:
-                if pattern in page_source:
-                    # Extract username for confirmation if possible
-                    if 'data-user="' in pattern:
-                        import re
-
-                        match = re.search(r'data-user="([^"]+)"', page_source)
-                        if match:
-                            username = match.group(1)
-                            logger.debug(
-                                f"Authentication confirmed - logged in as: {username}"
-                            )
-                            return True
-                    logger.debug(
-                        f"Authentication confirmed via strong indicator: {pattern}"
-                    )
-                    return True
-
-            # SECOND: Look for logged-in UI elements
+            # Look for user menu or account indicator
             user_indicators = [
                 "#user_tag",  # User menu
-                "a[href='/logout']",  # Logout link
-                ".dasher a",  # User dasher menu
+                ".site-title .user",  # Username in header
+                "[data-icon='H']",  # User icon
+                ".dasher .toggle",  # Dasher menu
             ]
 
             for selector in user_indicators:
                 try:
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    if element and element.is_displayed() and element.text.strip():
-                        logger.debug(
-                            f"Authentication confirmed via element: {selector} (text: {element.text.strip()})"
-                        )
+                    if element and element.text.strip():
+                        logger.debug(f"Login detected via selector: {selector}")
                         return True
                 except:
                     continue
 
-            # THIRD: Check for weaker logged-in content patterns
-            page_source_lower = page_source.lower()
-            logged_in_patterns = [
-                'href="/account"',  # Account page link
-                'class="user"',  # User class elements
-            ]
+            # Check page source for login indicators
+            page_source = self.driver.page_source.lower()
+            if any(
+                indicator in page_source
+                for indicator in ["logout", "preferences", "profile"]
+            ):
+                logger.debug("Login detected via page source")
+                return True
 
-            for pattern in logged_in_patterns:
-                if pattern in page_source_lower:
-                    logger.debug(f"Authentication confirmed via pattern: {pattern}")
-                    return True
-
-            # FOURTH: Only NOW check for login page indicators (as negative confirmation)
-            login_indicators = [
-                'class="auth auth-login"',  # Login page class
-                "Sign in</h1>",  # Login page heading
-                'id="form3-username"',  # Username input field
-                'id="form3-password"',  # Password input field
-            ]
-
-            for indicator in login_indicators:
-                if indicator in page_source:
-                    logger.debug(f"Login page detected via: {indicator}")
-                    return False
-
-            logger.debug("No clear authentication indicators found")
             return False
 
         except Exception as e:
-            logger.debug(f"Error checking authentication status: {e}")
+            logger.debug(f"Error checking login status: {e}")
             return False
 
     def close(self) -> None:
         """Close the browser"""
         if self.driver:
-            logger.info("Closing browser (press Ctrl+C to force quit)")
+            logger.info("Closing browser, press Ctrl+C to force quit")
             self.driver.quit()
             self.driver = None

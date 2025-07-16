@@ -28,7 +28,7 @@ class KeyboardHandler:
 
         if key_string == move_key or key_string == "Key." + move_key:
             self.make_move = True
-            logger.debug(f"Move confirmation key pressed: {move_key}")
+            logger.debug(f"Move key pressed: {move_key}")
             if self.on_move_key_press:
                 self.on_move_key_press()
 
@@ -39,7 +39,7 @@ class KeyboardHandler:
 
         if key_string == move_key or key_string == "Key." + move_key:
             self.make_move = False
-            logger.debug(f"Move confirmation key released: {move_key}")
+            logger.debug(f"Move key released: {move_key}")
 
     def start_listening(self) -> None:
         """Start the keyboard listener"""
@@ -48,14 +48,14 @@ class KeyboardHandler:
                 on_press=self.on_press, on_release=self.on_release
             )
             self.listener.start()
-            logger.debug("Input handler started")
+            logger.debug("Keyboard listener started")
 
     def stop_listening(self) -> None:
         """Stop the keyboard listener"""
         if self.listener:
             self.listener.stop()
             self.listener = None
-            logger.debug("Input handler stopped")
+            logger.debug("Keyboard listener stopped")
 
     def should_make_move(self) -> bool:
         """Check if move key is currently pressed"""

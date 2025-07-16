@@ -5,7 +5,6 @@ from .helpers import (
     advanced_humanized_delay,
     clear_screen,
     get_geckodriver_path,
-    get_icon_path,
     get_stockfish_path,
     humanized_delay,
 )
@@ -24,7 +23,6 @@ from .resilience import (
 __all__ = [
     "DebugUtils",
     "get_geckodriver_path",
-    "get_icon_path",
     "get_stockfish_path",
     "humanized_delay",
     "advanced_humanized_delay",

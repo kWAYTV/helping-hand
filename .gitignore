@@ -162,6 +162,6 @@ cython_debug/
 #.idea/
 
 debug/
-lichess_session.json
+deps/lichess_cookies.json
 config.ini
 !config.example.ini

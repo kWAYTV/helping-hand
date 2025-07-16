@@ -17,6 +17,10 @@ class LichessAuth:
         self.config_manager = config_manager
         self.browser_manager = browser_manager
 
+    def is_logged_in(self) -> bool:
+        """Check if currently logged in to Lichess"""
+        return self.browser_manager.is_logged_in()
+
     def sign_in(self) -> bool:
         """Sign in to Lichess"""
         try:

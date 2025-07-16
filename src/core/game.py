@@ -177,15 +177,19 @@ class GameManager:
                 self.gui.set_activity_status("Authenticating...")
 
             try:
-                if not self.lichess_auth.is_logged_in():
-                    self.lichess_auth.login()
+                if self.lichess_auth.is_logged_in():
+                    logger.success("Already authenticated")
+                    if self.gui and self.gui.is_gui_running():
+                        self.gui.set_connection_status(True, "Already logged in")
+                elif self.lichess_auth.sign_in():
                     logger.success("Authentication successful")
                     if self.gui and self.gui.is_gui_running():
                         self.gui.set_connection_status(True, "Authenticated")
                 else:
-                    logger.success("Already authenticated")
+                    logger.error("Authentication failed")
                     if self.gui and self.gui.is_gui_running():
-                        self.gui.set_connection_status(True, "Already logged in")
+                        self.gui.set_connection_status(False, "Auth failed")
+                    raise Exception("Failed to authenticate with Lichess")
             except Exception as e:
                 logger.error(f"Authentication failed: {e}")
                 if self.gui and self.gui.is_gui_running():
@@ -682,19 +686,11 @@ class GameManager:
 
         # Stop keyboard handler
         if hasattr(self, "keyboard_handler") and self.keyboard_handler:
-            safe_execute(
-                self.keyboard_handler.stop_listening,
-                log_errors=True,
-                operation_name="keyboard handler cleanup",
-            )
+            safe_execute(self.keyboard_handler.stop_listening, log_errors=True)
 
         # Close chess engine
         if hasattr(self, "chess_engine") and self.chess_engine:
-            safe_execute(
-                self.chess_engine.quit,
-                log_errors=True,
-                operation_name="chess engine cleanup",
-            )
+            safe_execute(self.chess_engine.quit, log_errors=True)
 
         # Close browser (most critical)
         if hasattr(self, "browser_manager") and self.browser_manager:
@@ -705,15 +701,10 @@ class GameManager:
                     else None
                 ),
                 log_errors=True,
-                operation_name="browser cleanup",
             )
 
         # Close GUI
         if hasattr(self, "gui") and self.gui:
-            safe_execute(
-                self.gui._on_closing,
-                log_errors=True,
-                operation_name="GUI cleanup",
-            )
+            safe_execute(self.gui._on_closing, log_errors=True)
 
         logger.success("Resource cleanup completed")

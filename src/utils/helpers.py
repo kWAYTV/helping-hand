@@ -32,6 +32,11 @@ def get_xpath_finder_path() -> str:
     return os.path.join("deps", "xpath_finder.xpi")
 
 
+def get_icon_path() -> str:
+    """Get the application icon path"""
+    return os.path.join("assets", "icon.ico")
+
+
 def install_firefox_extensions(driver):
     """Install Firefox extensions after browser startup"""
     from loguru import logger

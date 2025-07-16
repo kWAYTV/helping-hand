@@ -1,5 +1,6 @@
 """Main GUI window for the chess bot"""
 
+import os
 import queue
 import threading
 import tkinter as tk
@@ -9,6 +10,7 @@ from typing import Any, Dict, Optional
 import chess
 from loguru import logger
 
+from ..utils.helpers import get_icon_path
 from .chess_board import ChessBoardWidget
 from .move_history import MoveHistoryPanel
 from .status_panel import StatusPanel
@@ -22,6 +24,17 @@ class ChessBotGUI:
         self.root.title("Chess Bot - Helping Hand")
         self.root.geometry("1200x800")
         self.root.configure(bg="#2b2b2b")
+
+        # Set window icon
+        try:
+            icon_path = get_icon_path()
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+                logger.debug(f"Window icon set: {icon_path}")
+            else:
+                logger.warning(f"Icon file not found: {icon_path}")
+        except Exception as e:
+            logger.warning(f"Failed to set window icon: {e}")
 
         # Application state
         self.board_state = chess.Board()

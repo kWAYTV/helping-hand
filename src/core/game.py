@@ -139,6 +139,9 @@ class GameManager:
             logger.warning("Assuming we're playing as White")
             our_color = "W"
 
+        # Store our color for result interpretation
+        self._our_color = our_color
+
         # Notify GUI of game info
         self._notify_gui(
             {
@@ -493,9 +496,41 @@ class GameManager:
 
             logger.success(f"GAME FINISHED - {score} | {result}")
 
+            # Get our color for result interpretation
+            our_color = (
+                "white"
+                if hasattr(self, "_our_color") and self._our_color == "W"
+                else "black"
+            )
+
+            # Get move count from history
+            move_count = len(self.board.move_stack)
+
+            # Notify GUI of game completion
+            self._notify_gui(
+                {
+                    "type": "game_finished",
+                    "score": score,
+                    "reason": result,
+                    "our_color": our_color,
+                    "move_count": move_count,
+                }
+            )
+
         except Exception as e:
             logger.debug(f"Could not extract game result: {e}")
             logger.info("GAME FINISHED - Result details not available")
+
+            # Still notify GUI even if we couldn't get details
+            self._notify_gui(
+                {
+                    "type": "game_finished",
+                    "score": "Game completed",
+                    "reason": "Result details not available",
+                    "our_color": getattr(self, "_our_color", "unknown"),
+                    "move_count": len(self.board.move_stack) if self.board else 0,
+                }
+            )
 
     def set_gui_callback(self, callback):
         """Set the GUI callback for updates"""

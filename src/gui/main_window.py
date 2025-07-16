@@ -12,6 +12,7 @@ from .widgets.chess_board import ChessBoardWidget
 from .widgets.game_info import GameInfoWidget
 from .widgets.log_panel import LogPanelWidget
 from .widgets.move_history import MoveHistoryWidget
+from .widgets.result_popup import show_game_result
 
 
 class ChessBotGUI:
@@ -135,6 +136,9 @@ class ChessBotGUI:
             elif update_type == "game_start":
                 self.move_history.clear_history()
 
+            elif update_type == "game_finished":
+                self.show_game_result(update_data)
+
             elif update_type == "log":
                 self.log_panel.add_log(
                     update_data.get("message", ""), update_data.get("level", "info")
@@ -180,6 +184,17 @@ class ChessBotGUI:
         """Add a move to the move history"""
         if move:
             self.move_history.add_move(move, move_number, is_white)
+
+    def show_game_result(self, result_data: dict):
+        """Show the game result messagebox"""
+        try:
+            show_game_result(result_data)
+        except Exception as e:
+            logger.error(f"Error showing game result: {e}")
+            # Fallback - just log to console
+            score = result_data.get("score", "Unknown")
+            reason = result_data.get("reason", "Unknown")
+            self.add_log(f"Game finished: {score} - {reason}", "success")
 
     def run(self):
         """Start the GUI main loop"""

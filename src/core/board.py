@@ -44,25 +44,53 @@ class BoardHandler:
         logger.debug("No follow-up found, waiting for game interface")
 
         try:
-            # Wait for board first (this appears quickly)
-            WebDriverWait(self.driver, 30).until(
-                ec.presence_of_element_located((By.CLASS_NAME, "cg-wrap"))
-            )
-            logger.debug("Board found")
+            # First, wait to be in an actual game URL (not lobby)
+            max_url_wait = 60  # Wait up to 60 seconds for game to start
+            url_wait_count = 0
+            while url_wait_count < max_url_wait:
+                current_url = self.driver.current_url
+                # Check if we're in an actual game (not lobby, not tournament, etc.)
+                if (
+                    current_url != "https://www.lichess.org/"
+                    and current_url != "https://lichess.org/"
+                    and "/tournament" not in current_url
+                    and "/study" not in current_url
+                    and "/training" not in current_url
+                    and len(current_url.split("/")[-1]) >= 8
+                ):  # Game IDs are typically 8+ chars
+                    logger.debug(f"Detected game URL: {current_url}")
+                    break
+                logger.debug(f"Still on lobby/non-game page: {current_url}, waiting...")
+                sleep(1)
+                url_wait_count += 1
 
-            # Try multiple selectors for move input box (more flexible)
+            if url_wait_count >= max_url_wait:
+                logger.error("Timeout waiting for game to start - still on lobby page")
+                return False
+
+            # Wait for actual game board container (not lobby TV games)
+            WebDriverWait(self.driver, 30).until(
+                ec.presence_of_element_located(
+                    (By.CSS_SELECTOR, "main.round cg-container")
+                )
+            )
+            logger.debug("Game board found")
+
+            # Try multiple selectors for move input box - but be more specific
             move_input_selectors = [
-                (By.CLASS_NAME, "ready"),  # Most common selector
-                (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input"),  # Original
-                (By.CSS_SELECTOR, "input[placeholder*='move']"),  # CSS alternative
-                (By.CSS_SELECTOR, ".move-input"),  # Class alternative
-                (By.TAG_NAME, "input"),  # Last resort - any input
+                (By.CLASS_NAME, "ready"),  # Most common game input selector
+                (By.CSS_SELECTOR, "main.round input"),  # Input within game container
+                (By.CSS_SELECTOR, "input.ready"),  # Ready input specifically
+                (
+                    By.XPATH,
+                    "//main[contains(@class,'round')]//input",
+                ),  # Input in round/game main
             ]
 
             move_input_found = False
             for selector_type, selector_value in move_input_selectors:
                 try:
-                    WebDriverWait(self.driver, 5).until(
+                    WebDriverWait(self.driver, 10).until(
                         ec.presence_of_element_located((selector_type, selector_value))
                     )
                     logger.debug(
@@ -74,12 +102,8 @@ class BoardHandler:
                     continue
 
             if not move_input_found:
-                # Try a longer wait for the most reliable selector
-                logger.debug("Trying longer wait for move input...")
-                WebDriverWait(self.driver, 30).until(
-                    ec.presence_of_element_located((By.CLASS_NAME, "ready"))
-                )
-                logger.debug("Move input found after extended wait")
+                logger.error("Could not find move input element in game interface")
+                return False
 
             logger.debug("Game interface ready")
             return True
@@ -104,12 +128,15 @@ class BoardHandler:
     @element_retry(max_retries=3, delay=1.0)
     def get_move_input_handle(self):
         """Get the move input element"""
-        # Try multiple selectors for better reliability
+        # Try multiple selectors for better reliability - same as wait_for_game_ready
         move_input_selectors = [
-            (By.CLASS_NAME, "ready"),  # Most common selector
-            (By.XPATH, "/html/body/div[2]/main/div[1]/div[10]/input"),  # Original
-            (By.CSS_SELECTOR, "input[placeholder*='move']"),  # CSS alternative
-            (By.CSS_SELECTOR, ".move-input"),  # Class alternative
+            (By.CLASS_NAME, "ready"),  # Most common game input selector
+            (By.CSS_SELECTOR, "main.round input"),  # Input within game container
+            (By.CSS_SELECTOR, "input.ready"),  # Ready input specifically
+            (
+                By.XPATH,
+                "//main[contains(@class,'round')]//input",
+            ),  # Input in round/game main
         ]
 
         for selector_type, selector_value in move_input_selectors:
@@ -124,23 +151,6 @@ class BoardHandler:
                 return element
             except Exception:
                 continue
-
-        # If all specific selectors fail, try the fallback
-        try:
-            WebDriverWait(self.driver, 5).until(
-                ec.presence_of_element_located((By.TAG_NAME, "input"))
-            )
-            elements = self.driver.find_elements(By.TAG_NAME, "input")
-            # Return the first visible input element
-            for element in elements:
-                if element.is_displayed():
-                    logger.debug(
-                        "Move input handle found using fallback input selector"
-                    )
-                    return element
-        except Exception as e:
-            logger.error(f"Failed to find move input handle: {e}")
-            return None
 
         logger.error("Could not find move input handle with any selector")
         return None

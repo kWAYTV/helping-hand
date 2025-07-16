@@ -22,6 +22,10 @@ class StatusPanel:
         self.suggestion_var = tk.StringVar(value="No suggestion")
         self.evaluation_var = tk.StringVar(value="")
 
+        # Timer variables
+        self.game_time_var = tk.StringVar(value="00:00:00")
+        self.move_time_var = tk.StringVar(value="00:00")
+
         self._create_widgets()
         self._setup_layout()
 
@@ -49,6 +53,18 @@ class StatusPanel:
         self.depth_label = ttk.Label(self.frame, text="Engine Depth:")
         self.depth_value = ttk.Label(
             self.frame, textvariable=self.engine_depth_var, font=("Arial", 10)
+        )
+
+        # Game timer
+        self.game_time_label = ttk.Label(self.frame, text="Game Time:")
+        self.game_time_value = ttk.Label(
+            self.frame, textvariable=self.game_time_var, font=("Arial", 10, "bold")
+        )
+
+        # Move timer
+        self.move_time_label = ttk.Label(self.frame, text="Move Time:")
+        self.move_time_value = ttk.Label(
+            self.frame, textvariable=self.move_time_var, font=("Arial", 10)
         )
 
         # Current suggestion
@@ -94,6 +110,16 @@ class StatusPanel:
         # Engine depth (left side only)
         self.depth_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
         self.depth_value.grid(row=row, column=1, sticky="w")
+        row += 1
+
+        # Game timer (left side only)
+        self.game_time_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
+        self.game_time_value.grid(row=row, column=1, sticky="w")
+        row += 1
+
+        # Move timer (left side only)
+        self.move_time_label.grid(row=row, column=0, sticky="w", padx=(0, 10))
+        self.move_time_value.grid(row=row, column=1, sticky="w")
         row += 1
 
         # Separator
@@ -142,3 +168,21 @@ class StatusPanel:
         """Clear current suggestion"""
         self.suggestion_var.set("No suggestion")
         self.evaluation_var.set("")
+
+    def update_game_time(self, seconds: int):
+        """Update game time display"""
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        self.game_time_var.set(f"{hours:02d}:{minutes:02d}:{secs:02d}")
+
+    def update_move_time(self, seconds: int):
+        """Update move time display"""
+        minutes = seconds // 60
+        secs = seconds % 60
+        self.move_time_var.set(f"{minutes:02d}:{secs:02d}")
+
+    def reset_timers(self):
+        """Reset all timers to zero"""
+        self.game_time_var.set("00:00:00")
+        self.move_time_var.set("00:00")

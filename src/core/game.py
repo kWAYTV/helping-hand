@@ -240,6 +240,10 @@ class GameManager:
             logger.error(f"Game play failed: {e}")
             self.debug_utils.save_debug_info(self.browser_manager.driver, 0, self.board)
 
+            # Stop timers on game error
+            if self.gui and self.gui.is_gui_running():
+                self.gui.stop_timers()
+
             # Attempt recovery and restart
             if self.browser_recovery_manager.attempt_browser_recovery():
                 logger.info("Attempting to restart game after recovery")
@@ -262,6 +266,7 @@ class GameManager:
         if self.gui and self.gui.is_gui_running():
             self.gui.update_board_state(self.board)
             self.gui.update_game_status("Game in progress")
+            self.gui.start_game_timer()  # Start the game timer
 
         # Save session after successful game start
         logger.debug("Saving authentication session")
@@ -349,6 +354,11 @@ class GameManager:
 
         # === GAME COMPLETION ===
         logger.info("Game completed")
+
+        # Stop timers when game ends
+        if self.gui and self.gui.is_gui_running():
+            self.gui.stop_timers()
+
         self._log_game_result()
         logger.info("Waiting for next game")
         self.start_new_game()
@@ -389,6 +399,10 @@ class GameManager:
 
     def _handle_our_turn(self, move_number: int, our_color: str) -> int:
         """Handle our turn logic"""
+        # Reset move timer when it becomes our turn
+        if self.gui and self.gui.is_gui_running():
+            self.gui.reset_move_timer()
+
         # Check if we already made the move
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
@@ -502,6 +516,7 @@ class GameManager:
         # Clear any GUI suggestions when it's opponent's turn
         if self.gui and self.gui.is_gui_running():
             self.gui.clear_move_suggestion()
+            self.gui.reset_move_timer()  # Reset move timer for opponent's turn
 
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
@@ -549,41 +564,47 @@ class GameManager:
                 self.gui.show_game_result("Game finished")
 
     def cleanup(self) -> None:
-        """Clean up resources with enhanced error handling"""
-        # === RESOURCE CLEANUP ===
-        logger.info("Shutting down application")
+        """Clean up all resources"""
+        logger.info("Cleaning up resources...")
 
-        # Clean up GUI
-        if self.gui_log_handler:
-            safe_execute(
-                self.gui_log_handler.remove_handler,
-                log_errors=True,
-                default_return=None,
-            )
+        # Stop timers
+        if self.gui and self.gui.is_gui_running():
+            self.gui.stop_timers()
 
-        if self.gui:
-            safe_execute(
-                self.gui._on_closing,
-                log_errors=True,
-                default_return=None,
-            )
-
-        # Clean up input handler
-        if self.keyboard_handler:
+        # Stop keyboard handler
+        if hasattr(self, "keyboard_handler") and self.keyboard_handler:
             safe_execute(
                 self.keyboard_handler.stop_listening,
                 log_errors=True,
-                default_return=None,
+                operation_name="keyboard handler cleanup",
             )
 
-        # Clean up chess engine
-        if self.chess_engine:
-            safe_execute(self.chess_engine.quit, log_errors=True, default_return=None)
-
-        # Clean up browser
-        if self.browser_manager:
+        # Close chess engine
+        if hasattr(self, "chess_engine") and self.chess_engine:
             safe_execute(
-                self.browser_manager.close, log_errors=True, default_return=None
+                self.chess_engine.close,
+                log_errors=True,
+                operation_name="chess engine cleanup",
             )
 
-        logger.info("Application shutdown complete")
+        # Close browser (most critical)
+        if hasattr(self, "browser_manager") and self.browser_manager:
+            safe_execute(
+                lambda: (
+                    self.browser_manager.driver.quit()
+                    if self.browser_manager.driver
+                    else None
+                ),
+                log_errors=True,
+                operation_name="browser cleanup",
+            )
+
+        # Close GUI
+        if hasattr(self, "gui") and self.gui:
+            safe_execute(
+                self.gui._on_closing,
+                log_errors=True,
+                operation_name="GUI cleanup",
+            )
+
+        logger.success("Resource cleanup completed")

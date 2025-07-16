@@ -3,6 +3,7 @@
 import os
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
 from typing import Any, Dict, Optional
@@ -43,6 +44,11 @@ class ChessBotGUI:
         self.our_color = "white"
         self.move_history = []
         self.current_suggestion = None
+
+        # Timer state
+        self.game_start_time = None
+        self.move_start_time = None
+        self.timer_running = False
 
         # Thread-safe communication
         self.gui_queue = queue.Queue()
@@ -283,7 +289,22 @@ class ChessBotGUI:
     def _start_update_loop(self):
         """Start the GUI update loop"""
         self._process_queue()
+        self._update_timers()
         self.root.after(50, self._start_update_loop)
+
+    def _update_timers(self):
+        """Update timer displays"""
+        if self.timer_running and self.game_start_time:
+            current_time = time.time()
+
+            # Update game time
+            game_elapsed = int(current_time - self.game_start_time)
+            self.status_panel.update_game_time(game_elapsed)
+
+            # Update move time
+            if self.move_start_time:
+                move_elapsed = int(current_time - self.move_start_time)
+                self.status_panel.update_move_time(move_elapsed)
 
     def _process_queue(self):
         """Process messages from the queue"""
@@ -318,6 +339,15 @@ class ChessBotGUI:
         elif msg_type == "clear_suggestion":
             self.chess_board.clear_suggestion()
             self.status_panel.clear_suggestion()
+
+        elif msg_type == "timer_start":
+            self._start_game_timer()
+
+        elif msg_type == "timer_stop":
+            self._stop_timers()
+
+        elif msg_type == "move_timer_reset":
+            self._reset_move_timer()
 
         elif msg_type == "console_log":
             self._add_console_log(message["level"], message["text"])
@@ -383,6 +413,24 @@ class ChessBotGUI:
         except:
             pass
 
+    def _start_game_timer(self):
+        """Start the game timer"""
+        self.game_start_time = time.time()
+        self.move_start_time = time.time()
+        self.timer_running = True
+
+    def _stop_timers(self):
+        """Stop all timers"""
+        self.timer_running = False
+        self.game_start_time = None
+        self.move_start_time = None
+        self.status_panel.reset_timers()
+
+    def _reset_move_timer(self):
+        """Reset the move timer"""
+        if self.timer_running:
+            self.move_start_time = time.time()
+
     def run(self):
         """Run the GUI main loop"""
         try:
@@ -424,6 +472,21 @@ class ChessBotGUI:
     def clear_move_suggestion(self):
         """Clear move suggestion from board and status panel (thread-safe)"""
         message = {"type": "clear_suggestion"}
+        self.gui_queue.put(message)
+
+    def start_game_timer(self):
+        """Start the game timer (thread-safe)"""
+        message = {"type": "timer_start"}
+        self.gui_queue.put(message)
+
+    def stop_timers(self):
+        """Stop all timers (thread-safe)"""
+        message = {"type": "timer_stop"}
+        self.gui_queue.put(message)
+
+    def reset_move_timer(self):
+        """Reset move timer (thread-safe)"""
+        message = {"type": "move_timer_reset"}
         self.gui_queue.put(message)
 
     def log_message(self, level: str, text: str):

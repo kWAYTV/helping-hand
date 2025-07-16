@@ -44,42 +44,48 @@ class ChessBotGUI:
         except:
             pass
 
-        # Configure main grid
-        self.root.grid_columnconfigure(0, weight=2)  # Board side
-        self.root.grid_columnconfigure(1, weight=1)  # Info side
+        # Configure main grid - clean two-panel layout
+        self.root.grid_columnconfigure(0, weight=1)  # Left panel - Board + Game Info
+        self.root.grid_columnconfigure(1, weight=1)  # Right panel - Logs + History
         self.root.grid_rowconfigure(0, weight=1)
 
     def _setup_layout(self):
         """Setup the main layout with all widgets"""
 
-        # Left side - Chess board
-        board_frame = tk.Frame(self.root, bg="#2B2B2B")
-        board_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        # Left panel - Board + Game Info
+        left_frame = tk.Frame(self.root, bg="#2B2B2B")
+        left_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
+        left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_rowconfigure(0, weight=3)  # Board gets most space
+        left_frame.grid_rowconfigure(1, weight=1)  # Game info smaller
+
+        # Chess board
+        board_frame = tk.Frame(left_frame, bg="#2B2B2B")
+        board_frame.grid(row=0, column=0, pady=(0, 5), sticky="nsew")
         board_frame.grid_columnconfigure(0, weight=1)
         board_frame.grid_rowconfigure(0, weight=1)
 
         self.chess_board = ChessBoardWidget(board_frame)
         self.chess_board.grid(row=0, column=0, sticky="nsew")
 
-        # Right side - Info, move history, and logs
-        right_frame = tk.Frame(self.root, bg="#2B2B2B")
-        right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        right_frame.grid_columnconfigure(0, weight=1)
-        right_frame.grid_rowconfigure(0, weight=0)  # Game info - fixed height
-        right_frame.grid_rowconfigure(1, weight=1)  # Move history - expandable
-        right_frame.grid_rowconfigure(2, weight=1)  # Log panel - expandable
-
         # Game info panel
-        self.game_info = GameInfoWidget(right_frame)
-        self.game_info.grid(row=0, column=0, pady=(0, 5), sticky="ew")
+        self.game_info = GameInfoWidget(left_frame)
+        self.game_info.grid(row=1, column=0, sticky="nsew")
 
-        # Move history panel
-        self.move_history = MoveHistoryWidget(right_frame)
-        self.move_history.grid(row=1, column=0, pady=(0, 5), sticky="nsew")
+        # Right panel - Logs + Move History
+        right_frame = tk.Frame(self.root, bg="#2B2B2B")
+        right_frame.grid(row=0, column=1, padx=(5, 10), pady=10, sticky="nsew")
+        right_frame.grid_columnconfigure(0, weight=1)
+        right_frame.grid_rowconfigure(0, weight=2)  # Logs get more space
+        right_frame.grid_rowconfigure(1, weight=1)  # Move history smaller
 
         # Log panel
         self.log_panel = LogPanelWidget(right_frame)
-        self.log_panel.grid(row=2, column=0, sticky="nsew")
+        self.log_panel.grid(row=0, column=0, pady=(0, 5), sticky="nsew")
+
+        # Move history panel
+        self.move_history = MoveHistoryWidget(right_frame)
+        self.move_history.grid(row=1, column=0, sticky="nsew")
 
     def _setup_callbacks(self):
         """Setup callbacks between components"""

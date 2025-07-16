@@ -96,7 +96,7 @@ class GameInfoWidget(tk.Frame):
         )
 
     def _setup_layout(self):
-        """Setup widget layout"""
+        """Setup widget layout - vertical for side panel placement"""
         self.grid_columnconfigure(0, weight=1)
 
         # Title

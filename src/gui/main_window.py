@@ -180,6 +180,10 @@ class ChessBotGUI:
         elif msg_type == "suggestion":
             self._show_suggestion(message["move"], message["evaluation"])
 
+        elif msg_type == "clear_suggestion":
+            self.chess_board.clear_suggestion()
+            self.status_panel.clear_suggestion()
+
         elif msg_type == "console_log":
             self._add_console_log(message["level"], message["text"])
 
@@ -275,6 +279,11 @@ class ChessBotGUI:
     def show_move_suggestion(self, move: chess.Move, evaluation: Optional[str] = None):
         """Show move suggestion (thread-safe)"""
         message = {"type": "suggestion", "move": move, "evaluation": evaluation}
+        self.gui_queue.put(message)
+
+    def clear_move_suggestion(self):
+        """Clear move suggestion from board and status panel (thread-safe)"""
+        message = {"type": "clear_suggestion"}
         self.gui_queue.put(message)
 
     def log_message(self, level: str, text: str):

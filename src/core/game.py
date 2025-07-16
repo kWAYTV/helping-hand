@@ -441,10 +441,11 @@ class GameManager:
         self.board_handler.execute_move(move, move_number)
         self.board.push(move)
 
-        # Update GUI
+        # Update GUI and clear suggestion arrow
         if self.gui and self.gui.is_gui_running():
             self.gui.update_board_state(self.board, move)
             self.gui.add_move(str(move), "us")
+            self.gui.clear_move_suggestion()  # Clear suggestion arrow after execution
 
         return move_number + 1
 
@@ -470,10 +471,11 @@ class GameManager:
             self.keyboard_handler.reset_move_state()
             self.board.push(move)
 
-            # Update GUI
+            # Update GUI and clear suggestion arrow
             if self.gui and self.gui.is_gui_running():
                 self.gui.update_board_state(self.board, move)
                 self.gui.add_move(str(move), "us")
+                self.gui.clear_move_suggestion()  # Clear suggestion arrow after execution
 
             # Reset suggestion tracking
             self._current_suggestion = None
@@ -496,6 +498,10 @@ class GameManager:
     def _handle_opponent_turn(self, move_number: int) -> int:
         """Handle opponent's turn"""
         self.board_handler.clear_arrow()
+
+        # Clear any GUI suggestions when it's opponent's turn
+        if self.gui and self.gui.is_gui_running():
+            self.gui.clear_move_suggestion()
 
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:

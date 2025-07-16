@@ -340,9 +340,7 @@ class BoardHandler:
         move_str = str(move)
         src_square = move_str[:2]
         dst_square = move_str[2:]
-        logger.debug(
-            f"Drawing move arrow: {src_square} → {dst_square} (green circle = source, gold circle = destination)"
-        )
+        logger.debug(f"Drawing move arrow: {src_square} → {dst_square}")
 
         transform = self._get_piece_transform(move, our_color)
 

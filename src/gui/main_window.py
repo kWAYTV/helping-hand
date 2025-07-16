@@ -123,9 +123,44 @@ class ChessBotGUI:
             wrap=tk.WORD,  # Word wrapping for better readability
         )
 
-        # Bottom status bar
-        self.status_bar = ttk.Label(
-            self.root, text="Ready", relief=tk.SUNKEN, anchor=tk.W, padding=(5, 2)
+        # Enhanced bottom status bar with multiple sections
+        self.status_bar_frame = ttk.Frame(self.root)
+
+        # Status bar sections
+        self.activity_status = ttk.Label(
+            self.status_bar_frame,
+            text="🤖 Ready",
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+            padding=(8, 3),
+            font=("Arial", 9),
+        )
+
+        self.connection_status = ttk.Label(
+            self.status_bar_frame,
+            text="🌐 Disconnected",
+            relief=tk.SUNKEN,
+            anchor=tk.CENTER,
+            padding=(8, 3),
+            font=("Arial", 9),
+        )
+
+        self.game_stats = ttk.Label(
+            self.status_bar_frame,
+            text="📊 No game active",
+            relief=tk.SUNKEN,
+            anchor=tk.CENTER,
+            padding=(8, 3),
+            font=("Arial", 9),
+        )
+
+        self.system_info = ttk.Label(
+            self.status_bar_frame,
+            text="⚙️ Engine: Ready",
+            relief=tk.SUNKEN,
+            anchor=tk.E,
+            padding=(8, 3),
+            font=("Arial", 9),
         )
 
     def _setup_layout(self):
@@ -172,7 +207,21 @@ class ChessBotGUI:
         self.console_text.grid(row=0, column=0, sticky="nsew")
 
         # Status bar (bottom of window)
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_bar_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(2, 0))
+
+        # Configure status bar grid weights
+        self.status_bar_frame.grid_columnconfigure(
+            0, weight=2
+        )  # Activity gets more space
+        self.status_bar_frame.grid_columnconfigure(1, weight=1)  # Connection
+        self.status_bar_frame.grid_columnconfigure(2, weight=1)  # Game stats
+        self.status_bar_frame.grid_columnconfigure(3, weight=1)  # System info
+
+        # Pack status bar sections
+        self.activity_status.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        self.connection_status.grid(row=0, column=1, sticky="ew", padx=2)
+        self.game_stats.grid(row=0, column=2, sticky="ew", padx=2)
+        self.system_info.grid(row=0, column=3, sticky="ew", padx=(2, 0))
 
     def _setup_styles(self):
         """Setup custom styles for the GUI"""
@@ -349,6 +398,24 @@ class ChessBotGUI:
         elif msg_type == "move_timer_reset":
             self._reset_move_timer()
 
+        elif msg_type == "status_activity":
+            self.update_activity_status(message["status"])
+
+        elif msg_type == "status_connection":
+            self.update_connection_status(
+                message["connected"], message.get("details", "")
+            )
+
+        elif msg_type == "status_game_stats":
+            self.update_game_statistics(
+                message.get("moves_played", 0), message.get("our_moves", 0)
+            )
+
+        elif msg_type == "status_system":
+            self.update_system_status(
+                message.get("engine_status", "Ready"), message.get("depth")
+            )
+
         elif msg_type == "console_log":
             self._add_console_log(message["level"], message["text"])
 
@@ -431,6 +498,37 @@ class ChessBotGUI:
         if self.timer_running:
             self.move_start_time = time.time()
 
+    def update_activity_status(self, status: str):
+        """Update activity status section"""
+        self.activity_status.configure(text=f"🤖 {status}")
+
+    def update_connection_status(self, connected: bool, details: str = ""):
+        """Update connection status section"""
+        if connected:
+            text = f"🌐 Connected"
+            if details:
+                text += f" - {details}"
+        else:
+            text = f"🌐 Disconnected"
+            if details:
+                text += f" - {details}"
+        self.connection_status.configure(text=text)
+
+    def update_game_statistics(self, moves_played: int = 0, our_moves: int = 0):
+        """Update game statistics section"""
+        if moves_played > 0:
+            text = f"📊 Moves: {moves_played} (Us: {our_moves})"
+        else:
+            text = "📊 No game active"
+        self.game_stats.configure(text=text)
+
+    def update_system_status(self, engine_status: str = "Ready", depth: int = None):
+        """Update system status section"""
+        text = f"⚙️ Engine: {engine_status}"
+        if depth:
+            text += f" (D:{depth})"
+        self.system_info.configure(text=text)
+
     def run(self):
         """Run the GUI main loop"""
         try:
@@ -487,6 +585,38 @@ class ChessBotGUI:
     def reset_move_timer(self):
         """Reset move timer (thread-safe)"""
         message = {"type": "move_timer_reset"}
+        self.gui_queue.put(message)
+
+    def set_activity_status(self, status: str):
+        """Set activity status (thread-safe)"""
+        message = {"type": "status_activity", "status": status}
+        self.gui_queue.put(message)
+
+    def set_connection_status(self, connected: bool, details: str = ""):
+        """Set connection status (thread-safe)"""
+        message = {
+            "type": "status_connection",
+            "connected": connected,
+            "details": details,
+        }
+        self.gui_queue.put(message)
+
+    def set_game_statistics(self, moves_played: int = 0, our_moves: int = 0):
+        """Set game statistics (thread-safe)"""
+        message = {
+            "type": "status_game_stats",
+            "moves_played": moves_played,
+            "our_moves": our_moves,
+        }
+        self.gui_queue.put(message)
+
+    def set_system_status(self, engine_status: str = "Ready", depth: int = None):
+        """Set system status (thread-safe)"""
+        message = {
+            "type": "status_system",
+            "engine_status": engine_status,
+            "depth": depth,
+        }
         self.gui_queue.put(message)
 
     def log_message(self, level: str, text: str):

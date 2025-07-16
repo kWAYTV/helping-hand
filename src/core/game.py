@@ -119,6 +119,7 @@ class GameManager:
             # === CONFIGURATION DISPLAY ===
             if self.gui and self.gui.is_gui_running():
                 self.gui.update_game_status("Starting application...")
+                self.gui.set_activity_status("Initializing...")
 
             if self.config_manager.is_autoplay_enabled:
                 logger.info("Bot Mode: AutoPlay (fully automated)")
@@ -132,18 +133,30 @@ class GameManager:
             logger.debug("Initializing input handler")
             self.keyboard_handler.start_listening()
 
+            # Update system status
+            if self.gui and self.gui.is_gui_running():
+                engine_depth = self.config_manager.get("engine", "depth", 5)
+                self.gui.set_system_status("Initialized", int(engine_depth))
+
             # === LICHESS CONNECTION ===
             logger.info("Connecting to Lichess.org")
             if self.gui and self.gui.is_gui_running():
                 self.gui.update_game_status("Navigating to Lichess...")
+                self.gui.set_activity_status("Connecting to Lichess...")
 
             try:
                 self.browser_manager.navigate_to("https://www.lichess.org")
+                if self.gui and self.gui.is_gui_running():
+                    self.gui.set_connection_status(True, "lichess.org")
             except Exception as e:
                 logger.error(f"Failed to navigate to Lichess: {e}")
+                if self.gui and self.gui.is_gui_running():
+                    self.gui.set_connection_status(False, "Connection failed")
                 if self.browser_recovery_manager.attempt_browser_recovery():
                     logger.info("Retrying navigation after browser recovery")
                     self.browser_manager.navigate_to("https://www.lichess.org")
+                    if self.gui and self.gui.is_gui_running():
+                        self.gui.set_connection_status(True, "lichess.org")
                 else:
                     raise
 
@@ -161,18 +174,29 @@ class GameManager:
             # === AUTHENTICATION ===
             logger.info("Authenticating with Lichess")
             if self.gui and self.gui.is_gui_running():
-                self.gui.update_game_status("Signing in to Lichess...")
+                self.gui.set_activity_status("Authenticating...")
 
-            if not self.lichess_auth.sign_in():
-                logger.error("Authentication failed")
+            try:
+                if not self.lichess_auth.is_logged_in():
+                    self.lichess_auth.login()
+                    logger.success("Authentication successful")
+                    if self.gui and self.gui.is_gui_running():
+                        self.gui.set_connection_status(True, "Authenticated")
+                else:
+                    logger.success("Already authenticated")
+                    if self.gui and self.gui.is_gui_running():
+                        self.gui.set_connection_status(True, "Already logged in")
+            except Exception as e:
+                logger.error(f"Authentication failed: {e}")
                 if self.gui and self.gui.is_gui_running():
-                    self.gui.update_game_status("Failed to sign in")
-                return
+                    self.gui.set_connection_status(False, "Auth failed")
+                raise
 
-            # === GAME STARTUP ===
-            logger.info("Waiting for game to start")
+            # === GAME SEARCH ===
+            logger.info("Looking for games...")
             if self.gui and self.gui.is_gui_running():
-                self.gui.update_game_status("Waiting for game to start...")
+                self.gui.set_activity_status("Searching for games...")
+
             self.start_new_game()
 
         except Exception as e:
@@ -232,6 +256,7 @@ class GameManager:
             color_name = "White" if our_color == "W" else "Black"
             self.gui.status_panel.update_our_color(color_name)
             self.gui.set_our_color(color_name.lower())
+            self.gui.set_activity_status(f"Playing as {color_name}")
 
         # === GAME START ===
         try:
@@ -240,9 +265,11 @@ class GameManager:
             logger.error(f"Game play failed: {e}")
             self.debug_utils.save_debug_info(self.browser_manager.driver, 0, self.board)
 
-            # Stop timers on game error
+            # Stop timers and update status on game error
             if self.gui and self.gui.is_gui_running():
                 self.gui.stop_timers()
+                self.gui.set_activity_status("Game error occurred")
+                self.gui.set_game_statistics(0, 0)
 
             # Attempt recovery and restart
             if self.browser_recovery_manager.attempt_browser_recovery():
@@ -267,6 +294,16 @@ class GameManager:
             self.gui.update_board_state(self.board)
             self.gui.update_game_status("Game in progress")
             self.gui.start_game_timer()  # Start the game timer
+            self.gui.set_activity_status("Game in progress")
+            # Initialize game statistics
+            total_moves = len(self.board.move_stack)
+            our_moves = sum(
+                1
+                for i, _ in enumerate(self.board.move_stack)
+                if (i % 2 == 0 and our_color == "W")
+                or (i % 2 == 1 and our_color == "B")
+            )
+            self.gui.set_game_statistics(total_moves, our_moves)
 
         # Save session after successful game start
         logger.debug("Saving authentication session")
@@ -317,7 +354,7 @@ class GameManager:
                 if our_turn:
                     move_number = self._handle_our_turn(move_number, our_color)
                 else:
-                    move_number = self._handle_opponent_turn(move_number)
+                    move_number = self._handle_opponent_turn(move_number, our_color)
 
                 # Prevent infinite loops
                 if move_number == previous_move_number:
@@ -358,9 +395,16 @@ class GameManager:
         # Stop timers when game ends
         if self.gui and self.gui.is_gui_running():
             self.gui.stop_timers()
+            self.gui.set_activity_status("Game completed")
+            self.gui.set_system_status("Waiting for next game")
 
         self._log_game_result()
         logger.info("Waiting for next game")
+
+        # Reset for next game
+        if self.gui and self.gui.is_gui_running():
+            self.gui.set_activity_status("Searching for new game...")
+
         self.start_new_game()
 
     def _is_our_turn(self, our_color: str) -> bool:
@@ -402,6 +446,11 @@ class GameManager:
         # Reset move timer when it becomes our turn
         if self.gui and self.gui.is_gui_running():
             self.gui.reset_move_timer()
+            self.gui.set_activity_status(
+                "Thinking..."
+                if self.config_manager.is_autoplay_enabled
+                else "Awaiting move confirmation"
+            )
 
         # Check if we already made the move
         move_text = self.board_handler.check_for_move(move_number)
@@ -412,6 +461,16 @@ class GameManager:
             if self.board_handler.validate_and_push_move(
                 self.board, move_text, move_number, True
             ):
+                # Update game statistics after our move
+                if self.gui and self.gui.is_gui_running():
+                    total_moves = len(self.board.move_stack)
+                    our_moves = sum(
+                        1
+                        for i, _ in enumerate(self.board.move_stack)
+                        if (i % 2 == 0 and our_color == "W")
+                        or (i % 2 == 1 and our_color == "B")
+                    )
+                    self.gui.set_game_statistics(total_moves, our_moves)
                 return move_number + 1
             else:
                 return move_number
@@ -421,6 +480,11 @@ class GameManager:
             "engine", "depth", self.config_manager.get("engine", "Depth", 5)
         )
         logger.debug(f"Calculating move (depth: {engine_depth})")
+
+        # Update engine status
+        if self.gui and self.gui.is_gui_running():
+            self.gui.set_system_status("Analyzing...", int(engine_depth))
+
         advanced_humanized_delay("engine thinking", self.config_manager, "thinking")
 
         result = self.chess_engine.get_best_move(self.board)
@@ -428,6 +492,10 @@ class GameManager:
         src_square = move_str[:2]
         dst_square = move_str[2:]
         logger.info(f"Engine recommends: {result.move} ({src_square} → {dst_square})")
+
+        # Update engine status back to ready
+        if self.gui and self.gui.is_gui_running():
+            self.gui.set_system_status("Ready", int(engine_depth))
 
         # Update GUI with suggestion
         if self.gui and self.gui.is_gui_running():
@@ -445,6 +513,10 @@ class GameManager:
         """Execute move automatically"""
         logger.info(f"Executing move: {move}")
 
+        # Update activity status
+        if self.gui and self.gui.is_gui_running():
+            self.gui.set_activity_status("Executing move...")
+
         # Show arrow briefly if enabled, even in autoplay
         if self.config_manager.show_arrow:
             logger.debug("Displaying move preview")
@@ -460,6 +532,16 @@ class GameManager:
             self.gui.update_board_state(self.board, move)
             self.gui.add_move(str(move), "us")
             self.gui.clear_move_suggestion()  # Clear suggestion arrow after execution
+            # Update statistics after our move
+            total_moves = len(self.board.move_stack)
+            our_moves = sum(
+                1
+                for i, _ in enumerate(self.board.move_stack)
+                if (i % 2 == 0 and our_color == "W")
+                or (i % 2 == 1 and our_color == "B")
+            )
+            self.gui.set_game_statistics(total_moves, our_moves)
+            self.gui.set_activity_status("Waiting for opponent...")
 
         return move_number + 1
 
@@ -481,6 +563,10 @@ class GameManager:
         if self.keyboard_handler.should_make_move():
             logger.info(f"Manual confirmation received - executing: {move}")
 
+            # Update activity status
+            if self.gui and self.gui.is_gui_running():
+                self.gui.set_activity_status("Executing confirmed move...")
+
             self.board_handler.execute_move(move, move_number)
             self.keyboard_handler.reset_move_state()
             self.board.push(move)
@@ -490,6 +576,16 @@ class GameManager:
                 self.gui.update_board_state(self.board, move)
                 self.gui.add_move(str(move), "us")
                 self.gui.clear_move_suggestion()  # Clear suggestion arrow after execution
+                # Update statistics after our move
+                total_moves = len(self.board.move_stack)
+                our_moves = sum(
+                    1
+                    for i, _ in enumerate(self.board.move_stack)
+                    if (i % 2 == 0 and our_color == "W")
+                    or (i % 2 == 1 and our_color == "B")
+                )
+                self.gui.set_game_statistics(total_moves, our_moves)
+                self.gui.set_activity_status("Waiting for opponent...")
 
             # Reset suggestion tracking
             self._current_suggestion = None
@@ -509,7 +605,7 @@ class GameManager:
 
             return move_number
 
-    def _handle_opponent_turn(self, move_number: int) -> int:
+    def _handle_opponent_turn(self, move_number: int, our_color: str) -> int:
         """Handle opponent's turn"""
         self.board_handler.clear_arrow()
 
@@ -517,6 +613,7 @@ class GameManager:
         if self.gui and self.gui.is_gui_running():
             self.gui.clear_move_suggestion()
             self.gui.reset_move_timer()  # Reset move timer for opponent's turn
+            self.gui.set_activity_status("Opponent thinking...")
 
         move_text = self.board_handler.check_for_move(move_number)
         if move_text:
@@ -525,10 +622,19 @@ class GameManager:
             if self.board_handler.validate_and_push_move(
                 self.board, move_text, move_number, False
             ):
-                # Update GUI for opponent move
+                # Update GUI for opponent move and statistics
                 if self.gui and self.gui.is_gui_running():
                     self.gui.update_board_state(self.board)
                     self.gui.add_move(move_text, "opponent")
+                    # Update game statistics
+                    total_moves = len(self.board.move_stack)
+                    our_moves = sum(
+                        1
+                        for i, _ in enumerate(self.board.move_stack)
+                        if (i % 2 == 0 and our_color == "W")
+                        or (i % 2 == 1 and our_color == "B")
+                    )
+                    self.gui.set_game_statistics(total_moves, our_moves)
                 return move_number + 1
 
         return move_number
@@ -570,6 +676,9 @@ class GameManager:
         # Stop timers
         if self.gui and self.gui.is_gui_running():
             self.gui.stop_timers()
+            self.gui.set_activity_status("Shutting down...")
+            self.gui.set_connection_status(False, "Disconnecting")
+            self.gui.set_system_status("Stopping")
 
         # Stop keyboard handler
         if hasattr(self, "keyboard_handler") and self.keyboard_handler:
